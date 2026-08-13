@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scott Bird | Stratum Real Estate</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div class="locate-wrap">
+  <div class="locate-card">
+    <img class="logo" src="assets/logo.jpg" alt="Stratum Real Estate Group">
+    <div class="locate-spinner" id="spinner"></div>
+    <h2 id="locateTitle">Finding your location&hellip;</h2>
+    <p id="locateSub">Checking if you're standing in front of one of Scott's listings.</p>
+    <a class="skip" href="index.html">Skip &mdash; take me to all listings</a>
+  </div>
+</div>
+<div id="footerMount"></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-client.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(async function () {
+  document.getElementById('footerMount').outerHTML = Stratum.renderFooter();
+
+  const titleEl = document.getElementById('locateTitle');
+  const subEl = document.getElementById('locateSub');
+  function goToIndex() { window.location.replace('index.html'); }
+
+  const MAX_DISTANCE_METERS = 30.48; // 100 feet
+  function haversine(lat1, lon1, lat2, lon2) {
+    const R = 6371000;
+    const toRad = d => d * Math.PI / 180;
+    const dLat = toRad(lat2 - lat1);
+    const dLon = toRad(lon2 - lon1);
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+    return 2 * R * Math.asin(Math.sqrt(a));
+  }
+
+  const { data: properties, error } = await sb
+    .from('properties')
+    .select('id, lat, lng')
+    .neq('status', 'Sold')
+    .not('lat', 'is', null)
+    .not('lng', 'is', null);
+
+  const locateProps = error ? [] : (properties || []);
+
+  if (!locateProps.length) {
+    goToIndex();
+  } else if (!navigator.geolocation) {
+    titleEl.textContent = "Location isn't available";
+    subEl.textContent = 'Taking you to all listings instead.';
+    setTimeout(goToIndex, 1200);
+  } else {
+    const timeoutId = setTimeout(() => {
+      titleEl.textContent = "Couldn't get a location in time";
+      subEl.textContent = 'Taking you to all listings instead.';
+      setTimeout(goToIndex, 900);
+    }, 6000);
+
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        clearTimeout(timeoutId);
+        const { latitude, longitude } = pos.coords;
+        let nearest = null, nearestDist = Infinity;
+        locateProps.forEach(p => {
+          const d = haversine(latitude, longitude, p.lat, p.lng);
+          if (d < nearestDist) { nearestDist = d; nearest = p; }
+        });
+        if (nearest && nearestDist <= MAX_DISTANCE_METERS) {
+          titleEl.textContent = 'Found it!';
+          subEl.textContent = 'Taking you to this property now.';
+          window.location.replace('listing.html?id=' + encodeURIComponent(nearest.id));
+        } else {
+          titleEl.textContent = "You're not near a current listing";
+          subEl.textContent = 'Taking you to all listings instead.';
+          setTimeout(goToIndex, 900);
+        }
+      },
+      () => {
+        clearTimeout(timeoutId);
+        titleEl.textContent = 'Location permission not granted';
+        subEl.textContent = 'Taking you to all listings instead.';
+        setTimeout(goToIndex, 900);
+      },
+      { enableHighAccuracy: true, timeout: 5500, maximumAge: 0 }
+    );
+  }
+})();
+</script>
+</body>
+</html>

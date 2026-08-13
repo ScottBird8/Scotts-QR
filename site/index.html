@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scott Bird | Stratum Real Estate — Listings</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div id="app"><div class="state-msg">Loading listings&hellip;</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-client.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(async function () {
+  const app = document.getElementById('app');
+
+  const { data: properties, error } = await sb
+    .from('properties')
+    .select('*')
+    .neq('status', 'Sold')
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    app.innerHTML = '<div class="state-msg">Couldn\'t load listings right now. Please try again shortly.</div>';
+    console.error(error);
+    return;
+  }
+
+  const propButtons = (properties || []).map(p => `<a class="hero-prop-btn" href="listing.html?id=${encodeURIComponent(p.id)}">
+      <div class="hero-prop-thumb"><img src="${Stratum.esc(p.hero_photo_url || '')}" alt="${Stratum.esc(p.full_addr)}"></div>
+      <div class="hero-prop-text">
+        <div class="hero-prop-addr">${Stratum.esc(p.addr)}</div>
+        <div class="hero-prop-meta">${Stratum.esc(p.price)} &middot; ${Stratum.TYPE_LABEL[p.type] || p.type}</div>
+      </div>
+    </a>`).join('');
+
+  app.innerHTML = `${Stratum.renderHeader()}
+<div class="layout">
+  <main class="content">
+    <section class="hero">
+      <div class="hero-listings-panel">
+        <h2>Listings</h2>
+        <div class="hero-prop-list">
+          ${propButtons || '<div class="state-msg" style="margin:20px 4px;">No active listings right now — check back soon.</div>'}
+        </div>
+      </div>
+      <div class="hero-video-wrap" id="heroVideoWrap">
+        <video id="welcomeVideo" playsinline preload="metadata">
+          <source src="assets/welcome-video.mp4" type="video/mp4">
+        </video>
+        <div class="video-tag"><span class="dot"></span>Welcome</div>
+        <div class="play-overlay" id="playOverlay">
+          <div class="play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="replay-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></div>
+      </div>
+    </section>
+
+    <div class="search-banner" id="listings">
+      <div class="search-banner-text">
+        <div class="search-banner-title">Looking for something else?</div>
+        <div class="search-banner-sub">Search every active listing for sale across Utah, not just Scott's.</div>
+      </div>
+      <a href="http://utahrealestate4sale.com" target="_blank" rel="noopener" class="btn btn-primary">Search available properties &rarr;</a>
+    </div>
+  </main>
+</div>
+${Stratum.renderContact()}
+${Stratum.renderFooter()}
+${Stratum.chatWidgetHtml(null)}`;
+
+  Stratum.wireHeader();
+  Stratum.wireChatWidget(null);
+  Stratum.initHomeVideo();
+})();
+</script>
+</body>
+</html>

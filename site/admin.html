@@ -1,0 +1,963 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stratum Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+body{background:var(--bg);}
+.hidden{display:none!important;}
+
+/* ---- sign-in gate ---- */
+.gate{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:24px;}
+.gate-card{width:100%;max-width:360px;background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:32px;text-align:center;box-shadow:0 20px 45px -22px rgba(54,54,54,0.28);}
+.gate-card img{height:38px;margin:0 auto 20px;}
+.gate-card h2{font-family:var(--display);margin:0 0 18px;}
+.gate-card input{width:100%;padding:11px 14px;border:1px solid var(--line-bright);border-radius:10px;font-family:var(--body);font-size:14px;margin-bottom:10px;}
+.gate-card button{width:100%;margin-top:6px;}
+.gate-error{color:var(--maroon);font-size:13px;margin-top:10px;}
+
+/* ---- admin shell ---- */
+.admin-header{background:#fff;border-bottom:1px solid var(--line);padding:14px 24px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:40;}
+.admin-header .brand{display:flex;align-items:center;gap:12px;}
+.admin-header img.logo{height:32px;}
+.admin-header h1{font-family:var(--display);font-size:17px;margin:0;}
+.admin-wrap{max-width:1100px;margin:0 auto;padding:24px;}
+.tabs{display:flex;gap:8px;margin-bottom:20px;border-bottom:1px solid var(--line);}
+.tab-btn{font-family:var(--display);font-weight:600;font-size:14px;padding:10px 16px;border:none;background:none;color:var(--charcoal-soft);cursor:pointer;border-bottom:2px solid transparent;margin-bottom:-1px;}
+.tab-btn.active{color:var(--maroon);border-bottom-color:var(--maroon);}
+.tab-panel{display:none;}
+.tab-panel.active{display:block;}
+
+.panel-toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;gap:12px;flex-wrap:wrap;}
+.btn-sm{font-family:var(--display);font-weight:600;font-size:13px;padding:9px 16px;border-radius:100px;border:1px solid var(--line-bright);background:#fff;color:var(--charcoal);cursor:pointer;}
+.btn-sm:hover{border-color:var(--maroon);color:var(--maroon);}
+.btn-sm.primary{background:var(--maroon);color:#fff;border-color:var(--maroon);}
+.btn-sm.primary:hover{background:var(--maroon-bright);}
+.btn-sm.danger:hover{border-color:#b3261e;color:#b3261e;}
+
+/* property / qr list rows */
+.list-row{display:flex;align-items:center;gap:14px;background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:10px;flex-wrap:wrap;}
+.row-thumb{width:56px;height:56px;border-radius:8px;overflow:hidden;background:var(--bg);flex-shrink:0;}
+.row-thumb img{width:100%;height:100%;object-fit:cover;}
+.row-main{flex:1;min-width:180px;}
+.row-addr{font-weight:600;font-size:14px;}
+.row-meta{font-family:var(--mono);font-size:11.5px;color:var(--charcoal-soft);margin-top:3px;}
+.row-badges{font-size:12px;color:var(--charcoal-soft);margin-top:3px;}
+.row-actions{display:flex;gap:6px;align-items:center;flex-wrap:wrap;}
+select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-radius:8px;border:1px solid var(--line-bright);background:#fff;}
+.state-msg-inline{color:var(--charcoal-soft);font-family:var(--mono);font-size:13px;padding:20px 4px;}
+
+/* overlay / modal form */
+.overlay{position:fixed;inset:0;background:rgba(54,54,54,0.45);z-index:200;display:flex;align-items:flex-start;justify-content:center;padding:30px 16px;overflow-y:auto;opacity:0;pointer-events:none;transition:opacity .15s;}
+.overlay.open{opacity:1;pointer-events:auto;}
+.overlay-card{background:#fff;border-radius:var(--radius);max-width:720px;width:100%;padding:28px;margin-bottom:40px;}
+.overlay-card h2{font-family:var(--display);margin:0 0 18px;}
+.form-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
+.form-grid .full{grid-column:1/-1;}
+.field label{display:block;font-family:var(--mono);font-size:10.5px;text-transform:uppercase;letter-spacing:0.04em;color:var(--charcoal-soft);margin-bottom:5px;}
+.field input, .field select, .field textarea{width:100%;padding:10px 12px;border:1px solid var(--line-bright);border-radius:10px;font-family:var(--body);font-size:14px;background:#fff;color:var(--charcoal);}
+.field textarea{resize:vertical;min-height:70px;font-family:var(--mono);font-size:12.5px;}
+.field-hint{font-size:11.5px;color:var(--charcoal-soft);margin-top:4px;}
+.form-actions{display:flex;justify-content:flex-end;gap:10px;margin-top:22px;}
+.missing-banner{background:var(--maroon-wash);color:var(--maroon);border:1px solid var(--maroon);border-radius:10px;padding:10px 14px;font-size:13px;margin-bottom:16px;}
+.thumb-strip{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+.thumb-chip{position:relative;width:64px;height:64px;border-radius:8px;overflow:hidden;background:var(--bg);border:1px solid var(--line);}
+.thumb-chip img{width:100%;height:100%;object-fit:cover;}
+.thumb-chip button{position:absolute;top:2px;right:2px;width:18px;height:18px;border-radius:50%;background:rgba(0,0,0,0.6);color:#fff;border:none;font-size:11px;line-height:1;cursor:pointer;}
+
+/* toast */
+.toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--charcoal);color:#fff;padding:11px 20px;border-radius:100px;font-size:13px;opacity:0;transition:all .25s;z-index:500;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+
+/* import log */
+.import-log{background:#111;color:#c8e6c9;font-family:var(--mono);font-size:12px;padding:14px;border-radius:10px;max-height:340px;overflow-y:auto;white-space:pre-wrap;margin-top:16px;}
+</style>
+</head>
+<body>
+
+<div id="gate" class="gate">
+  <div class="gate-card">
+    <img src="assets/logo.jpg" alt="Stratum Real Estate Group">
+    <h2>Admin sign in</h2>
+    <input id="loginEmail" type="email" placeholder="Email" autocomplete="username">
+    <input id="loginPassword" type="password" placeholder="Password" autocomplete="current-password">
+    <button class="btn-sm primary" id="loginBtn" style="width:100%;">Sign in</button>
+    <div class="gate-error hidden" id="loginError"></div>
+  </div>
+</div>
+
+<div id="adminApp" class="hidden">
+  <div class="admin-header">
+    <div class="brand"><img class="logo" src="assets/logo.jpg" alt="Stratum"><h1>Stratum Admin</h1></div>
+    <button class="btn-sm" id="signOutBtn">Sign out</button>
+  </div>
+
+  <div class="admin-wrap">
+    <div class="tabs">
+      <button class="tab-btn active" data-tab="properties">Properties</button>
+      <button class="tab-btn" data-tab="qr">QR Codes</button>
+      <button class="tab-btn" data-tab="import">Import Backup</button>
+    </div>
+
+    <div class="tab-panel active" id="tab-properties">
+      <div class="panel-toolbar">
+        <div></div>
+        <button class="btn-sm primary" id="addPropertyBtn">+ Add property</button>
+      </div>
+      <div id="propertyList"><div class="state-msg-inline">Loading&hellip;</div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-qr">
+      <div class="panel-toolbar">
+        <div></div>
+        <button class="btn-sm primary" id="qrNewBtn">+ New QR code</button>
+      </div>
+      <div id="qrList"><div class="state-msg-inline">Loading&hellip;</div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-import">
+      <div class="overlay-card" style="max-width:640px;padding:24px;">
+        <h2 style="font-size:16px;">Import legacy backup</h2>
+        <p class="field-hint">Pick the JSON backup file exported from the old admin panel ("Download backup"). This uploads every photo/video it contains to Supabase Storage and adds the listings to the database. Already-imported properties (matched by id) are skipped automatically, so it's safe to run again if it gets interrupted.</p>
+        <input type="file" id="importFile" accept="application/json">
+        <div id="importLog" class="import-log hidden"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Property add/edit form -->
+<div class="overlay" id="propertyOverlay">
+  <div class="overlay-card">
+    <h2 id="propertyFormTitle">Add property</h2>
+    <div id="missingBanner" class="missing-banner hidden"></div>
+
+    <div class="field full">
+      <label>Import from MLS listing sheet (PDF, optional)</label>
+      <input type="file" id="f_pdf_import" accept="application/pdf">
+      <div class="field-hint" id="pdfImportStatus">Best-effort — always review every field afterward. Can't extract the photo; add that separately.</div>
+    </div>
+
+    <div class="form-grid" style="margin-top:16px;">
+      <div class="field full">
+        <label>Hero photo</label>
+        <input type="file" id="f_hero" accept="image/*">
+        <div id="heroPreview" class="thumb-strip"></div>
+      </div>
+      <div class="field full">
+        <label>Additional photos (up to 10 total)</label>
+        <input type="file" id="f_gallery" accept="image/*" multiple>
+        <div id="galleryPreview" class="thumb-strip"></div>
+      </div>
+      <div class="field full">
+        <label>Video (optional)</label>
+        <input type="file" id="f_video" accept="video/*">
+        <div id="videoPreview" class="field-hint"></div>
+      </div>
+      <div class="field full"><label>Matterport 3D tour URL</label><input id="f_matterport_url"></div>
+
+      <div class="field"><label>Street address *</label><input id="f_addr"></div>
+      <div class="field"><label>City, State ZIP *</label><input id="f_city"></div>
+
+      <div class="field full" style="display:flex;gap:10px;align-items:flex-end;">
+        <div style="flex:1;"><label>Latitude</label><input id="f_lat"></div>
+        <div style="flex:1;"><label>Longitude</label><input id="f_lng"></div>
+        <button type="button" class="btn-sm" id="lookupCoordsBtn" style="white-space:nowrap;">Look up from address</button>
+      </div>
+
+      <div class="field"><label>Price *</label><input id="f_price"></div>
+      <div class="field"><label>Original price</label><input id="f_orig_price"></div>
+
+      <div class="field"><label>Status *</label>
+        <select id="f_status"><option>Active</option><option>Pending</option><option>Sold</option></select>
+      </div>
+      <div class="field"><label>Type *</label>
+        <select id="f_type"><option value="residential">Residential</option><option value="land">Land</option><option value="business">Business Opportunity</option></select>
+      </div>
+
+      <div class="field"><label>MLS #</label><input id="f_mls"></div>
+      <div class="field"><label>Elevation</label><input id="f_elev"></div>
+      <div class="field"><label>Beds</label><input id="f_beds"></div>
+      <div class="field"><label>Baths</label><input id="f_baths"></div>
+      <div class="field"><label>SqFt</label><input id="f_sqft"></div>
+      <div class="field"><label>Lot</label><input id="f_lot"></div>
+      <div class="field"><label>Subdivision</label><input id="f_subdivision"></div>
+      <div class="field"><label>Year built</label><input id="f_year_built"></div>
+      <div class="field full"><label>Listed date</label><input id="f_listed"></div>
+
+      <div class="field full"><label>Card blurb *</label><input id="f_blurb"></div>
+      <div class="field full"><label>Full description *</label><textarea id="f_public_remarks"></textarea></div>
+
+      <div class="field full">
+        <label>Property details (one "Label: Value" per line)</label>
+        <textarea id="f_facts"></textarea>
+      </div>
+      <div class="field full">
+        <label>Room list (one per line)</label>
+        <textarea id="f_rooms"></textarea>
+      </div>
+
+      <div class="field"><label>Client testimonial (Sold only)</label><textarea id="f_testimonial"></textarea></div>
+      <div class="field"><label>Testimonial from</label><input id="f_testimonial_name"></div>
+    </div>
+
+    <div class="form-actions">
+      <button class="btn-sm" id="propertyCancelBtn">Cancel</button>
+      <button class="btn-sm primary" id="propertySaveBtn">Save property</button>
+    </div>
+  </div>
+</div>
+
+<!-- QR code form -->
+<div class="overlay" id="qrFormOverlay">
+  <div class="overlay-card" style="max-width:420px;">
+    <h2>New QR code</h2>
+    <div class="field" style="margin-bottom:12px;"><label>Label</label><input id="qr_label" placeholder="e.g. Yard sign — Steam Engine"></div>
+    <div class="field" style="margin-bottom:12px;"><label>Target URL</label><input id="qr_url" placeholder="e.g. utahrealestate.us/locate.html"></div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Center logo (optional)</label>
+      <input type="file" id="qr_logo" accept="image/*">
+      <div class="field-hint">Defaults to no logo. Uses a white backdrop so the code stays scannable.</div>
+    </div>
+    <button class="btn-sm primary" id="qrGenerateBtn" style="width:100%;">Generate preview</button>
+    <div id="qrResultWrap" style="display:none;flex-direction:column;align-items:center;gap:14px;margin-top:16px;">
+      <div id="qrCodeContainer"></div>
+    </div>
+    <div class="form-actions">
+      <button class="btn-sm" id="qrFormCancelBtn">Cancel</button>
+      <button class="btn-sm primary hidden" id="qrSaveBtn">Save &amp; download</button>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+<script src="assets/supabase-client.js"></script>
+<script src="assets/site.js"></script>
+<script>
+if (typeof pdfjsLib !== 'undefined') {
+  pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+}
+
+function toast(msg) {
+  const el = document.createElement('div');
+  el.className = 'toast';
+  el.textContent = msg;
+  document.body.appendChild(el);
+  requestAnimationFrame(() => el.classList.add('show'));
+  setTimeout(() => { el.classList.remove('show'); setTimeout(() => el.remove(), 300); }, 2600);
+}
+
+function slugify(s) {
+  return (s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '').slice(0, 40) || 'item';
+}
+function randSuffix() { return Math.random().toString(36).slice(2, 6); }
+
+/* ============================================================
+   Auth
+   ============================================================ */
+const gate = document.getElementById('gate');
+const adminApp = document.getElementById('adminApp');
+
+async function checkAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session) {
+    gate.classList.add('hidden');
+    adminApp.classList.remove('hidden');
+    loadProperties();
+    loadQrCodes();
+  } else {
+    gate.classList.remove('hidden');
+    adminApp.classList.add('hidden');
+  }
+}
+
+document.getElementById('loginBtn').addEventListener('click', async () => {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.classList.add('hidden');
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) { errEl.textContent = error.message; errEl.classList.remove('hidden'); return; }
+  checkAuth();
+});
+document.getElementById('loginPassword').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') document.getElementById('loginBtn').click();
+});
+document.getElementById('signOutBtn').addEventListener('click', async () => {
+  await sb.auth.signOut();
+  checkAuth();
+});
+checkAuth();
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+    btn.classList.add('active');
+    document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+  });
+});
+
+/* ============================================================
+   Storage helpers
+   ============================================================ */
+async function uploadFile(bucket, propId, kind, file) {
+  const ext = (file.name.split('.').pop() || 'bin').toLowerCase();
+  const path = `${propId}/${kind}-${Date.now()}-${randSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(bucket).upload(path, file, { contentType: file.type || undefined });
+  if (error) throw error;
+  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+function extFromMime(mime) {
+  const map = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'image/gif': 'gif', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm' };
+  return map[mime] || 'bin';
+}
+function dataUriToBlob(dataUri) {
+  const [header, base64] = dataUri.split(',');
+  const mimeMatch = header.match(/data:(.*?);base64/);
+  const mime = mimeMatch ? mimeMatch[1] : 'application/octet-stream';
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  return new Blob([bytes], { type: mime });
+}
+async function uploadBlob(bucket, propId, kind, blob) {
+  const ext = extFromMime(blob.type);
+  const path = `${propId}/${kind}-${Date.now()}-${randSuffix()}.${ext}`;
+  const { error } = await sb.storage.from(bucket).upload(path, blob, { contentType: blob.type || undefined });
+  if (error) throw error;
+  return sb.storage.from(bucket).getPublicUrl(path).data.publicUrl;
+}
+
+/* ============================================================
+   Properties: list + quick status
+   ============================================================ */
+let PROPERTIES = [];
+
+async function loadProperties() {
+  const { data, error } = await sb.from('properties').select('*').order('created_at', { ascending: true });
+  const listEl = document.getElementById('propertyList');
+  if (error) { listEl.innerHTML = '<div class="state-msg-inline">Could not load properties.</div>'; console.error(error); return; }
+  PROPERTIES = data || [];
+  renderPropertyList();
+}
+
+function renderPropertyList() {
+  const listEl = document.getElementById('propertyList');
+  if (!PROPERTIES.length) { listEl.innerHTML = '<div class="state-msg-inline">No properties yet — add your first one above.</div>'; return; }
+  listEl.innerHTML = PROPERTIES.map(p => {
+    const badges = [];
+    if (p.video_url) badges.push('🎥 video');
+    if ((p.gallery_photo_urls || []).length) badges.push(`📷 +${p.gallery_photo_urls.length}`);
+    if (p.matterport_url) badges.push('🏠 3D tour');
+    return `<div class="list-row" data-id="${p.id}">
+      <div class="row-thumb"><img src="${Stratum.esc(p.hero_photo_url || '')}" alt=""></div>
+      <div class="row-main">
+        <div class="row-addr">${Stratum.esc(p.addr)}</div>
+        <div class="row-meta">${Stratum.esc(p.price)} &middot; ${Stratum.TYPE_LABEL[p.type] || p.type}${p.mls ? ' &middot; MLS #' + Stratum.esc(p.mls) : ''}</div>
+        ${badges.length ? `<div class="row-badges">${badges.join(' &middot; ')}</div>` : ''}
+      </div>
+      <div class="row-actions">
+        <select class="qstatus" data-id="${p.id}">
+          <option value="Active"${p.status === 'Active' ? ' selected' : ''}>Active</option>
+          <option value="Pending"${p.status === 'Pending' ? ' selected' : ''}>Pending</option>
+          <option value="Sold"${p.status === 'Sold' ? ' selected' : ''}>Sold</option>
+        </select>
+        <button class="btn-sm" data-preview="${p.id}">Preview</button>
+        <button class="btn-sm" data-edit="${p.id}">Edit</button>
+        <button class="btn-sm danger" data-delete="${p.id}">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+
+  listEl.querySelectorAll('.qstatus').forEach(sel => {
+    sel.addEventListener('change', async () => {
+      const id = sel.dataset.id;
+      const prev = PROPERTIES.find(p => p.id === id).status;
+      const next = sel.value;
+      const p = PROPERTIES.find(x => x.id === id);
+      p.status = next;
+      const { error } = await sb.from('properties').update({ status: next }).eq('id', id);
+      if (error) { p.status = prev; sel.value = prev; toast('Could not update status'); console.error(error); }
+      else toast('Status updated');
+    });
+  });
+  listEl.querySelectorAll('[data-preview]').forEach(btn => btn.addEventListener('click', () => window.open('listing.html?id=' + encodeURIComponent(btn.dataset.preview), '_blank')));
+  listEl.querySelectorAll('[data-edit]').forEach(btn => btn.addEventListener('click', () => openPropertyForm(btn.dataset.edit)));
+  listEl.querySelectorAll('[data-delete]').forEach(btn => btn.addEventListener('click', () => deleteProperty(btn.dataset.delete)));
+}
+
+async function deleteProperty(id) {
+  const p = PROPERTIES.find(x => x.id === id);
+  if (!p) return;
+  if (!confirm(`Delete "${p.addr}"? This can't be undone.`)) return;
+  const { error } = await sb.from('properties').delete().eq('id', id);
+  if (error) { toast('Delete failed'); console.error(error); return; }
+  PROPERTIES = PROPERTIES.filter(x => x.id !== id);
+  renderPropertyList();
+  toast('Property deleted');
+}
+
+/* ============================================================
+   Property add/edit form
+   ============================================================ */
+const propertyOverlay = document.getElementById('propertyOverlay');
+let editingId = null;
+let heroFile = null, heroExistingUrl = null;
+let galleryFiles = []; // { file } for new, or { url } for kept existing
+let videoFile = null, videoExistingUrl = null, videoRemoved = false;
+
+const FIELD_IDS = ['addr','city','lat','lng','price','orig_price','status','type','mls','elev','beds','baths',
+  'sqft','lot','subdivision','year_built','listed','blurb','public_remarks','facts','rooms',
+  'testimonial','testimonial_name','matterport_url'];
+
+function resetPropertyForm() {
+  FIELD_IDS.forEach(id => { const el = document.getElementById('f_' + id); if (el) el.value = ''; });
+  document.getElementById('f_status').value = 'Active';
+  document.getElementById('f_type').value = 'residential';
+  document.getElementById('missingBanner').classList.add('hidden');
+  document.getElementById('pdfImportStatus').textContent = "Best-effort — always review every field afterward. Can't extract the photo; add that separately.";
+  document.getElementById('f_pdf_import').value = '';
+  heroFile = null; heroExistingUrl = null;
+  galleryFiles = [];
+  videoFile = null; videoExistingUrl = null; videoRemoved = false;
+  renderHeroPreview(); renderGalleryPreview(); renderVideoPreview();
+}
+
+function renderHeroPreview() {
+  const src = heroFile ? URL.createObjectURL(heroFile) : heroExistingUrl;
+  document.getElementById('heroPreview').innerHTML = src ? `<div class="thumb-chip"><img src="${src}"></div>` : '';
+}
+function renderGalleryPreview() {
+  document.getElementById('galleryPreview').innerHTML = galleryFiles.map((g, i) => {
+    const src = g.file ? URL.createObjectURL(g.file) : g.url;
+    return `<div class="thumb-chip"><img src="${src}"><button type="button" data-remove-gallery="${i}">&times;</button></div>`;
+  }).join('');
+  document.querySelectorAll('[data-remove-gallery]').forEach(btn => btn.addEventListener('click', () => {
+    galleryFiles.splice(parseInt(btn.dataset.removeGallery, 10), 1);
+    renderGalleryPreview();
+  }));
+}
+function renderVideoPreview() {
+  const el = document.getElementById('videoPreview');
+  if (videoFile) el.textContent = `Selected: ${videoFile.name} (${(videoFile.size / 1024 / 1024).toFixed(1)} MB)`;
+  else if (videoExistingUrl && !videoRemoved) el.innerHTML = `Current video attached. <a href="#" id="removeVideoLink">Remove</a>`;
+  else el.textContent = '';
+  const removeLink = document.getElementById('removeVideoLink');
+  if (removeLink) removeLink.addEventListener('click', (e) => { e.preventDefault(); videoRemoved = true; renderVideoPreview(); });
+}
+
+document.getElementById('f_hero').addEventListener('change', (e) => { heroFile = e.target.files[0] || null; renderHeroPreview(); });
+document.getElementById('f_gallery').addEventListener('change', (e) => {
+  const existingCount = galleryFiles.length;
+  const room = 10 - existingCount;
+  const picked = Array.from(e.target.files).slice(0, Math.max(room, 0));
+  if (e.target.files.length > room) toast(`Only ${room} more photo(s) can be added (10 max).`);
+  picked.forEach(file => galleryFiles.push({ file }));
+  e.target.value = '';
+  renderGalleryPreview();
+});
+document.getElementById('f_video').addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  if (file.size > 60 * 1024 * 1024) toast('That video is over 60MB — it will still upload, but consider a smaller file for faster loading.');
+  videoFile = file; videoRemoved = false;
+  renderVideoPreview();
+});
+
+function openPropertyForm(id) {
+  resetPropertyForm();
+  editingId = id || null;
+  document.getElementById('propertyFormTitle').textContent = id ? 'Edit property' : 'Add property';
+  if (id) {
+    const p = PROPERTIES.find(x => x.id === id);
+    document.getElementById('f_addr').value = p.addr || '';
+    document.getElementById('f_city').value = p.city || '';
+    document.getElementById('f_lat').value = p.lat ?? '';
+    document.getElementById('f_lng').value = p.lng ?? '';
+    document.getElementById('f_price').value = p.price || '';
+    document.getElementById('f_orig_price').value = p.orig_price || '';
+    document.getElementById('f_status').value = p.status || 'Active';
+    document.getElementById('f_type').value = p.type || 'residential';
+    document.getElementById('f_mls').value = p.mls || '';
+    document.getElementById('f_elev').value = p.elev || '';
+    document.getElementById('f_beds').value = p.beds || '';
+    document.getElementById('f_baths').value = p.baths || '';
+    document.getElementById('f_sqft').value = p.sqft || '';
+    document.getElementById('f_lot').value = p.lot || '';
+    document.getElementById('f_subdivision').value = p.subdivision || '';
+    document.getElementById('f_year_built').value = p.year_built || '';
+    document.getElementById('f_listed').value = p.listed || '';
+    document.getElementById('f_blurb').value = p.blurb || '';
+    document.getElementById('f_public_remarks').value = p.public_remarks || '';
+    document.getElementById('f_facts').value = (p.facts || []).map(([k, v]) => `${k}: ${v}`).join('\n');
+    document.getElementById('f_rooms').value = (p.rooms || []).join('\n');
+    document.getElementById('f_testimonial').value = p.testimonial || '';
+    document.getElementById('f_testimonial_name').value = p.testimonial_name || '';
+    document.getElementById('f_matterport_url').value = p.matterport_url || '';
+    heroExistingUrl = p.hero_photo_url || null;
+    galleryFiles = (p.gallery_photo_urls || []).map(url => ({ url }));
+    videoExistingUrl = p.video_url || null;
+    renderHeroPreview(); renderGalleryPreview(); renderVideoPreview();
+  }
+  propertyOverlay.classList.add('open');
+}
+document.getElementById('addPropertyBtn').addEventListener('click', () => openPropertyForm(null));
+document.getElementById('propertyCancelBtn').addEventListener('click', () => propertyOverlay.classList.remove('open'));
+
+function parseFacts(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
+    const idx = line.indexOf(':');
+    if (idx === -1) return [line, ''];
+    return [line.slice(0, idx).trim(), line.slice(idx + 1).trim()];
+  });
+}
+function parseRooms(text) {
+  return text.split('\n').map(l => l.trim()).filter(Boolean);
+}
+
+document.getElementById('propertySaveBtn').addEventListener('click', async () => {
+  const val = id => document.getElementById('f_' + id).value.trim();
+  const required = { addr: val('addr'), city: val('city'), price: val('price'), blurb: val('blurb'), public_remarks: val('public_remarks') };
+  const missing = Object.entries(required).filter(([, v]) => !v).map(([k]) => k);
+  const banner = document.getElementById('missingBanner');
+  if (missing.length) {
+    banner.textContent = 'Please fill in: ' + missing.join(', ');
+    banner.classList.remove('hidden');
+    return;
+  }
+  banner.classList.add('hidden');
+
+  const saveBtn = document.getElementById('propertySaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+  try {
+    const id = editingId || (slugify(val('addr')) + '-' + randSuffix());
+
+    let heroUrl = heroExistingUrl;
+    if (heroFile) heroUrl = await uploadFile('property-photos', id, 'hero', heroFile);
+
+    const galleryUrls = [];
+    for (const g of galleryFiles) {
+      if (g.url) galleryUrls.push(g.url);
+      else galleryUrls.push(await uploadFile('property-photos', id, 'gallery', g.file));
+    }
+
+    let videoUrl = videoRemoved ? null : videoExistingUrl;
+    if (videoFile) videoUrl = await uploadFile('property-videos', id, 'video', videoFile);
+
+    const row = {
+      id,
+      addr: required.addr,
+      city: required.city,
+      price: required.price,
+      orig_price: val('orig_price') || required.price,
+      status: val('status') || 'Active',
+      type: val('type') || 'residential',
+      mls: val('mls'),
+      elev: val('elev'),
+      beds: val('beds'),
+      baths: val('baths'),
+      sqft: val('sqft'),
+      lot: val('lot'),
+      subdivision: val('subdivision'),
+      year_built: val('year_built'),
+      listed: val('listed'),
+      blurb: required.blurb,
+      public_remarks: required.public_remarks,
+      facts: parseFacts(document.getElementById('f_facts').value),
+      rooms: parseRooms(document.getElementById('f_rooms').value),
+      lat: val('lat') ? parseFloat(val('lat')) : null,
+      lng: val('lng') ? parseFloat(val('lng')) : null,
+      matterport_url: val('matterport_url') || null,
+      testimonial: val('testimonial') || null,
+      testimonial_name: val('testimonial_name') || null,
+      hero_photo_url: heroUrl,
+      gallery_photo_urls: galleryUrls,
+      video_url: videoUrl,
+    };
+
+    const { error } = await sb.from('properties').upsert(row);
+    if (error) throw error;
+
+    propertyOverlay.classList.remove('open');
+    toast(editingId ? 'Property updated' : 'Property added');
+    await loadProperties();
+  } catch (err) {
+    console.error(err);
+    toast('Save failed — check your connection and try again.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save property';
+  }
+});
+
+document.getElementById('lookupCoordsBtn').addEventListener('click', async () => {
+  const addr = document.getElementById('f_addr').value.trim();
+  const city = document.getElementById('f_city').value.trim();
+  if (!addr) { toast('Enter a street address first'); return; }
+  try {
+    const q = encodeURIComponent(`${addr}, ${city}`);
+    const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${q}`);
+    const results = await res.json();
+    if (!results.length) { toast('Could not find coordinates for that address'); return; }
+    document.getElementById('f_lat').value = results[0].lat;
+    document.getElementById('f_lng').value = results[0].lon;
+    toast('Coordinates found');
+  } catch (err) {
+    console.error(err);
+    toast('Lookup failed — check your connection');
+  }
+});
+
+/* ============================================================
+   PDF import (MLS listing sheet — best effort)
+   ============================================================ */
+const EXCLUDE_LABELS_ENTIRELY = new Set([
+  'Private Remarks', 'Showing Instructions', 'Owner', 'Parcel Number',
+  'Tax Acct', 'Tax Acct #', 'PID YN', 'Tax Serial', 'Tax Serial #', 'Mill',
+  'Paid By', 'Existing Loans', 'Expiration Date', 'Status Change Date',
+  'Fallthrough Date', 'Building Permit', 'Building Permit #',
+  'Agent Days on Market', 'Cumulative Days on Market', 'LA', 'LO',
+  'License #', 'Directions', 'Concessions', 'Concessions Amount',
+  'Concessions Available', 'Financing Remarks', 'Sold Price Per/SqFt',
+  'Owner/Agent', 'Marketing Begin Date', 'Delayed Marketing', 'Exempt Listing',
+  'For Sale or Rent', 'Listing Type', 'Terms of Sale', 'Possession',
+]);
+const EXCLUDE_FROM_FACTS = new Set([
+  'Full Baths', 'Half Baths', 'Total Bedrooms',
+  'List Price', 'Original List Price', 'Listing Date', 'Public Remarks',
+]);
+
+async function extractPdfText(file) {
+  const buf = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+  let fullText = '';
+  for (let i = 1; i <= pdf.numPages; i++) {
+    const page = await pdf.getPage(i);
+    const content = await page.getTextContent();
+    let lastY = null;
+    let line = '';
+    content.items.forEach(item => {
+      const y = item.transform[5];
+      if (lastY !== null && Math.abs(y - lastY) > 2) { fullText += line.trim() + '\n'; line = ''; }
+      line += item.str + ' ';
+      lastY = y;
+    });
+    fullText += line.trim() + '\n';
+  }
+  return fullText;
+}
+
+function parseListingPdfText(text) {
+  const parsed = {};
+  const headerMatch = text.match(/([^\n]+?)\s+(\d{5,7})\s+(Residential|Land|Business Opp)\s+(Active|Pending|Sold)\s+\$([\d,]+)/);
+  if (headerMatch) {
+    const parts = headerMatch[1].split(',').map(s => s.trim());
+    parsed.addr = parts[0] || '';
+    parsed.city = parts.slice(1).join(', ');
+    parsed.mls = headerMatch[2];
+    parsed.type = headerMatch[3] === 'Residential' ? 'residential' : headerMatch[3] === 'Land' ? 'land' : 'business';
+    parsed.status = headerMatch[4];
+    parsed.price = '$' + headerMatch[5];
+  }
+
+  const labelRe = /([A-Z][A-Za-z0-9\/#% ]{1,38}?):\s*/g;
+  const matches = [...text.matchAll(labelRe)];
+  const pairs = [];
+  for (let i = 0; i < matches.length; i++) {
+    const label = matches[i][1].trim();
+    const start = matches[i].index + matches[i][0].length;
+    const end = i + 1 < matches.length ? matches[i + 1].index : text.length;
+    const value = text.slice(start, end).trim().replace(/\s+/g, ' ');
+    if (label && value) pairs.push([label, value]);
+  }
+
+  const facts = [];
+  pairs.forEach(([label, value]) => {
+    if (EXCLUDE_LABELS_ENTIRELY.has(label)) return;
+    if (label === 'Elementary' || label === 'High' || label === 'Jr. High' || label === 'Sr. High') return;
+    if (label === 'Public Remarks') { parsed.public_remarks = value; return; }
+    if (label === 'Total Bedrooms') { parsed.beds = value; return; }
+    if (label === 'Listing Date' && !parsed.listed) { parsed.listed = value; return; }
+    if (label === 'Original List Price' && !parsed.orig_price) { parsed.orig_price = value.startsWith('$') ? value : '$' + value; return; }
+    if (label === 'List Price' && !parsed.price) { parsed.price = value.startsWith('$') ? value : '$' + value; return; }
+    if (label === 'Subdivision' && !parsed.subdivision) parsed.subdivision = value;
+    if (label === 'Year Built' && !parsed.year_built) parsed.year_built = value;
+    if (label === 'Total SqFt' && !parsed.sqft) parsed.sqft = value;
+    if (label === 'Lot Acres' && !parsed.lot) parsed.lot = value + ' ac';
+    if (label === 'Total Acres' && !parsed.lot) parsed.lot = value + ' ac';
+    if (!EXCLUDE_FROM_FACTS.has(label)) facts.push([label, value]);
+  });
+
+  const schoolMatch = text.match(/Elementary:\s*([A-Za-z .'-]+?)\s+Jr\.?\s*High:\s*([A-Za-z .'-]+?)\s+Sr\.?\s*High:\s*([A-Za-z .'-]+?)(?:\n|\s{2,}|$)/);
+  if (schoolMatch) facts.push(['Elementary / Jr / Sr High', `${schoolMatch[1].trim()} / ${schoolMatch[2].trim()} / ${schoolMatch[3].trim()}`]);
+
+  const fullBaths = pairs.find(([l]) => l === 'Full Baths');
+  const halfBaths = pairs.find(([l]) => l === 'Half Baths');
+  if (fullBaths) {
+    parsed.baths = halfBaths && halfBaths[1] !== '0' ? `${fullBaths[1]}.${halfBaths[1]}` : fullBaths[1];
+    facts.unshift(['Full / Half Baths', `${fullBaths[1]} / ${halfBaths ? halfBaths[1] : '0'}`]);
+  }
+
+  parsed.facts = facts;
+  return parsed;
+}
+
+function prefillFormFromParsed(parsed) {
+  const set = (id, v) => { if (v) document.getElementById(id).value = v; };
+  set('f_addr', parsed.addr); set('f_city', parsed.city); set('f_price', parsed.price);
+  set('f_orig_price', parsed.orig_price); set('f_status', parsed.status); set('f_type', parsed.type);
+  set('f_mls', parsed.mls); set('f_beds', parsed.beds); set('f_baths', parsed.baths); set('f_sqft', parsed.sqft);
+  set('f_lot', parsed.lot); set('f_subdivision', parsed.subdivision); set('f_year_built', parsed.year_built);
+  set('f_listed', parsed.listed);
+  if (parsed.public_remarks) {
+    document.getElementById('f_public_remarks').value = parsed.public_remarks;
+    const firstSentence = parsed.public_remarks.split(/(?<=[.!?])\s/)[0];
+    document.getElementById('f_blurb').value = firstSentence.length <= 140 ? firstSentence : firstSentence.slice(0, 137) + '…';
+  }
+  if (parsed.facts && parsed.facts.length) document.getElementById('f_facts').value = parsed.facts.map(([k, v]) => `${k}: ${v}`).join('\n');
+}
+
+document.getElementById('f_pdf_import').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  const statusEl = document.getElementById('pdfImportStatus');
+  if (!file) return;
+  if (typeof pdfjsLib === 'undefined') { statusEl.textContent = 'Could not load the PDF reader — check your connection.'; return; }
+  statusEl.textContent = 'Reading PDF…';
+  try {
+    const text = await extractPdfText(file);
+    const parsed = parseListingPdfText(text);
+    if (!parsed.addr && !parsed.public_remarks) {
+      statusEl.textContent = "Couldn't recognize this PDF's layout — try filling the form in by hand.";
+      return;
+    }
+    prefillFormFromParsed(parsed);
+    statusEl.textContent = 'Imported below — review every field (and add a photo) before saving.';
+    toast('Imported from PDF — review before saving.');
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = 'Could not read that PDF.';
+  }
+});
+
+/* ============================================================
+   QR code manager (with optional center logo)
+   ============================================================ */
+let QR_CODES = [];
+const qrFormOverlay = document.getElementById('qrFormOverlay');
+
+async function loadQrCodes() {
+  const { data, error } = await sb.from('qr_codes').select('*').order('created_at', { ascending: false });
+  if (error) { console.error(error); return; }
+  QR_CODES = data || [];
+  renderQrList();
+}
+
+function renderQrList() {
+  const listEl = document.getElementById('qrList');
+  if (!QR_CODES.length) { listEl.innerHTML = '<div class="state-msg-inline">No saved QR codes yet.</div>'; return; }
+  listEl.innerHTML = QR_CODES.map(q => `<div class="list-row" data-id="${q.id}">
+      <div class="row-thumb">${q.image_url ? `<img src="${Stratum.esc(q.image_url)}">` : ''}</div>
+      <div class="row-main">
+        <div class="row-addr">${Stratum.esc(q.label)}</div>
+        <div class="row-meta">${Stratum.esc(q.url)}</div>
+      </div>
+      <div class="row-actions">
+        ${q.image_url ? `<a class="btn-sm" href="${Stratum.esc(q.image_url)}" download="stratum-qr-${slugify(q.label)}.png">Download</a>` : ''}
+        <button class="btn-sm danger" data-delete-qr="${q.id}">Delete</button>
+      </div>
+    </div>`).join('');
+  listEl.querySelectorAll('[data-delete-qr]').forEach(btn => btn.addEventListener('click', () => deleteQr(btn.dataset.deleteQr)));
+}
+
+async function deleteQr(id) {
+  const q = QR_CODES.find(x => x.id === id);
+  if (!q || !confirm(`Delete the QR code "${q.label}"?`)) return;
+  const { error } = await sb.from('qr_codes').delete().eq('id', id);
+  if (error) { toast('Delete failed'); console.error(error); return; }
+  QR_CODES = QR_CODES.filter(x => x.id !== id);
+  renderQrList();
+  toast('QR code deleted');
+}
+
+function roundRect(ctx, x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function loadImage(src) {
+  return new Promise((resolve, reject) => { const img = new Image(); img.onload = () => resolve(img); img.onerror = reject; img.src = src; });
+}
+
+let previewedUrl = null;
+let previewCanvas = null;
+
+function openQrForm() {
+  document.getElementById('qr_label').value = '';
+  document.getElementById('qr_url').value = '';
+  document.getElementById('qr_logo').value = '';
+  document.getElementById('qrResultWrap').style.display = 'none';
+  document.getElementById('qrCodeContainer').innerHTML = '';
+  document.getElementById('qrSaveBtn').classList.add('hidden');
+  previewedUrl = null; previewCanvas = null;
+  qrFormOverlay.classList.add('open');
+}
+document.getElementById('qrNewBtn').addEventListener('click', openQrForm);
+document.getElementById('qrFormCancelBtn').addEventListener('click', () => qrFormOverlay.classList.remove('open'));
+
+document.getElementById('qrGenerateBtn').addEventListener('click', async () => {
+  let url = document.getElementById('qr_url').value.trim();
+  const label = document.getElementById('qr_label').value.trim();
+  if (!label) { toast('Give this QR code a label first'); return; }
+  if (!url) { toast('Enter a URL first'); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  document.getElementById('qr_url').value = url;
+  if (typeof QRCode === 'undefined') { toast('Could not load the QR library — check your connection.'); return; }
+
+  const container = document.getElementById('qrCodeContainer');
+  container.innerHTML = '';
+  new QRCode(container, { text: url, width: 240, height: 240, colorDark: '#363636', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+  await new Promise(r => setTimeout(r, 60)); // qrcodejs renders async
+
+  const qrCanvas = container.querySelector('canvas');
+  const qrImg = container.querySelector('img'); // qrcodejs shows this <img> snapshot, not the canvas
+  const logoFile = document.getElementById('qr_logo').files[0];
+  if (qrCanvas && logoFile) {
+    const logoImg = await loadImage(URL.createObjectURL(logoFile));
+    const ctx = qrCanvas.getContext('2d');
+    const size = qrCanvas.width;
+    const logoSize = Math.round(size * 0.22);
+    const cx = (size - logoSize) / 2, cy = (size - logoSize) / 2, pad = 6;
+    ctx.fillStyle = '#ffffff';
+    roundRect(ctx, cx - pad, cy - pad, logoSize + pad * 2, logoSize + pad * 2, 10);
+    ctx.fill();
+    ctx.drawImage(logoImg, cx, cy, logoSize, logoSize);
+    // The visible element is the <img> snapshot qrcodejs took before we drew the
+    // logo, not the (hidden) canvas — refresh it so the preview actually matches.
+    if (qrImg) qrImg.src = qrCanvas.toDataURL('image/png');
+  }
+
+  previewedUrl = url;
+  previewCanvas = qrCanvas;
+  document.getElementById('qrResultWrap').style.display = 'flex';
+  document.getElementById('qrSaveBtn').classList.remove('hidden');
+});
+
+document.getElementById('qrSaveBtn').addEventListener('click', async () => {
+  const label = document.getElementById('qr_label').value.trim();
+  const url = document.getElementById('qr_url').value.trim();
+  if (!label || !url || !previewedUrl || !previewCanvas) { toast('Preview the code before saving'); return; }
+  const saveBtn = document.getElementById('qrSaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+  try {
+    const blob = await new Promise(resolve => previewCanvas.toBlob(resolve, 'image/png'));
+    const path = `qrcodes/${slugify(label)}-${randSuffix()}.png`;
+    const { error: upErr } = await sb.storage.from('qr-codes').upload(path, blob, { contentType: 'image/png' });
+    if (upErr) throw upErr;
+    const { data: signed, error: signErr } = await sb.storage.from('qr-codes').createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
+    if (signErr) throw signErr;
+    const { error: dbErr } = await sb.from('qr_codes').insert({ label, url, image_url: signed.signedUrl });
+    if (dbErr) throw dbErr;
+
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `stratum-qr-${slugify(label)}.png`;
+    a.click();
+
+    qrFormOverlay.classList.remove('open');
+    toast('QR code saved and downloaded');
+    await loadQrCodes();
+  } catch (err) {
+    console.error(err);
+    toast('Save failed — check your connection and try again.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save & download';
+  }
+});
+
+/* ============================================================
+   Import legacy backup
+   ============================================================ */
+const importLog = document.getElementById('importLog');
+function log(msg) {
+  importLog.classList.remove('hidden');
+  importLog.textContent += msg + '\n';
+  importLog.scrollTop = importLog.scrollHeight;
+}
+
+document.getElementById('importFile').addEventListener('change', async (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+  importLog.textContent = '';
+  log(`Reading ${file.name}…`);
+  let data;
+  try {
+    const text = await file.text();
+    data = JSON.parse(text);
+    if (!Array.isArray(data)) throw new Error('Expected a JSON array');
+  } catch (err) {
+    log('Could not read that file: ' + err.message);
+    return;
+  }
+  log(`Found ${data.length} propert${data.length === 1 ? 'y' : 'ies'} in the backup.`);
+
+  const { data: existingRows } = await sb.from('properties').select('id');
+  const existingIds = new Set((existingRows || []).map(r => r.id));
+
+  for (const legacy of data) {
+    if (existingIds.has(legacy.id)) { log(`Skipping "${legacy.addr}" (${legacy.id}) — already imported.`); continue; }
+    log(`Importing "${legacy.addr}" (${legacy.id})…`);
+    try {
+      let heroUrl = null;
+      if (legacy.img) { heroUrl = await uploadBlob('property-photos', legacy.id, 'hero', dataUriToBlob(legacy.img)); log('  ✓ hero photo uploaded'); }
+
+      const galleryUrls = [];
+      for (let i = 0; i < (legacy.gallery || []).length; i++) {
+        galleryUrls.push(await uploadBlob('property-photos', legacy.id, 'gallery', dataUriToBlob(legacy.gallery[i])));
+      }
+      if (galleryUrls.length) log(`  ✓ ${galleryUrls.length} gallery photo(s) uploaded`);
+
+      let videoUrl = null;
+      if (legacy.video) { videoUrl = await uploadBlob('property-videos', legacy.id, 'video', dataUriToBlob(legacy.video)); log('  ✓ video uploaded'); }
+
+      const row = {
+        id: legacy.id,
+        addr: legacy.addr, city: legacy.city, price: legacy.price, orig_price: legacy.orig_price || legacy.price,
+        status: legacy.status || 'Active', type: legacy.type || 'residential', mls: legacy.mls, elev: legacy.elev,
+        beds: legacy.beds, baths: legacy.baths, sqft: legacy.sqft, lot: legacy.lot, subdivision: legacy.subdivision,
+        year_built: legacy.year_built, listed: legacy.listed, blurb: legacy.blurb, public_remarks: legacy.public_remarks,
+        facts: legacy.facts || [], rooms: legacy.rooms || [], lat: legacy.lat, lng: legacy.lng,
+        matterport_url: legacy.matterport_url || null, testimonial: legacy.testimonial || null,
+        testimonial_name: legacy.testimonial_name || null,
+        hero_photo_url: heroUrl, gallery_photo_urls: galleryUrls, video_url: videoUrl,
+      };
+      const { error } = await sb.from('properties').upsert(row);
+      if (error) throw error;
+      log(`  ✓ saved.`);
+      existingIds.add(legacy.id);
+    } catch (err) {
+      console.error(err);
+      log(`  ✗ failed: ${err.message || err}`);
+    }
+  }
+  log('Done.');
+  toast('Import finished — see log below.');
+  await loadProperties();
+});
+</script>
+</body>
+</html>

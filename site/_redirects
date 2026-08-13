@@ -1,0 +1,14 @@
+# Rewrites (200, not a redirect) so any already-printed QR codes, MLS sheets,
+# or bookmarks pointing at the old static per-property filenames keep working
+# unchanged — the URL bar stays the same, only the underlying page (which now
+# fetches live from Supabase) changes. Add a line here any time a new listing
+# needs a legacy-style URL preserved.
+/listing-1227-n-50-w.html                    /listing.html?id=1227-n-50-w-adbl                200
+/listing-150-w-ridgeview-street-119.html     /listing.html?id=150-w-ridgeview-street-119-enb7 200
+/listing-2050w.html                          /listing.html?id=2050w                           200
+/listing-5225w.html                          /listing.html?id=5225w                           200
+/listing-5300w.html                          /listing.html?id=5300w                           200
+/listing-mountainview.html                   /listing.html?id=mountainview                    200
+/listing-sodanerd.html                       /listing.html?id=sodanerd                        200
+/listing-steamengine.html                    /listing.html?id=steamengine                     200
+/listing-tumbleweed.html                     /listing.html?id=tumbleweed                      200

@@ -1,0 +1,8 @@
+.DS_Store
+*.log
+node_modules/
+
+# Reference-only materials, not part of the deployed site
+current-site/
+stratum-listings-backup*.json
+utahrealestate_qr_code*.png
