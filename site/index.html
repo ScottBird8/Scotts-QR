@@ -35,7 +35,7 @@
   const propButtons = (properties || []).map(p => `<a class="hero-prop-btn" href="listing.html?id=${encodeURIComponent(p.id)}">
       <div class="hero-prop-thumb"><img src="${Stratum.esc(p.hero_photo_url || '')}" alt="${Stratum.esc(p.full_addr)}"></div>
       <div class="hero-prop-text">
-        <div class="hero-prop-addr">${Stratum.esc(p.addr)}</div>
+        <div class="hero-prop-addr">${Stratum.esc(p.addr)}<span class="hero-prop-city">, ${Stratum.esc((p.city || '').split(',')[0].trim())}</span></div>
         <div class="hero-prop-meta">${Stratum.esc(p.price)} &middot; ${Stratum.TYPE_LABEL[p.type] || p.type}</div>
       </div>
     </a>`).join('');

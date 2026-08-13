@@ -92,6 +92,7 @@ main.content{min-width:0;}
 .hero-prop-thumb img{width:100%;height:100%;object-fit:cover;}
 .hero-prop-text{min-width:0;}
 .hero-prop-addr{font-size:13px;font-weight:600;color:var(--charcoal);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.hero-prop-city{font-weight:400;color:var(--charcoal-soft);}
 .hero-prop-meta{font-family:var(--mono);font-size:10.5px;color:var(--charcoal-soft);margin-top:2px;}
 
 .search-banner{
