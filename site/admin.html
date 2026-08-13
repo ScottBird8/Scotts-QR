@@ -101,6 +101,8 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
   <div class="admin-wrap">
     <div class="tabs">
       <button class="tab-btn active" data-tab="properties">Properties</button>
+      <button class="tab-btn" data-tab="testimonials">Testimonials</button>
+      <button class="tab-btn" data-tab="scottpage">Scott Page</button>
       <button class="tab-btn" data-tab="qr">QR Codes</button>
       <button class="tab-btn" data-tab="import">Import Backup</button>
     </div>
@@ -111,6 +113,26 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
         <button class="btn-sm primary" id="addPropertyBtn">+ Add property</button>
       </div>
       <div id="propertyList"><div class="state-msg-inline">Loading&hellip;</div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-testimonials">
+      <div class="panel-toolbar">
+        <div></div>
+        <button class="btn-sm primary" id="addTestimonialBtn">+ Add testimonial</button>
+      </div>
+      <div id="testimonialList"><div class="state-msg-inline">Loading&hellip;</div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-scottpage">
+      <div class="overlay-card" style="max-width:520px;padding:24px;">
+        <h2 style="font-size:16px;">Scott page video</h2>
+        <p class="field-hint">The welcome video shown on your personal marketing page (utahrealestate.us/scott). Separate from the homepage welcome video.</p>
+        <input type="file" id="scottVideoFile" accept="video/*">
+        <div id="scottVideoStatus" class="field-hint" style="margin-top:8px;"></div>
+        <div class="form-actions" style="justify-content:flex-start;">
+          <button class="btn-sm primary" id="scottVideoSaveBtn">Save video</button>
+        </div>
+      </div>
     </div>
 
     <div class="tab-panel" id="tab-qr">
@@ -216,6 +238,23 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
   </div>
 </div>
 
+<!-- Testimonial add/edit form -->
+<div class="overlay" id="testimonialOverlay">
+  <div class="overlay-card" style="max-width:480px;">
+    <h2 id="testimonialFormTitle">Add testimonial</h2>
+    <div class="field" style="margin-bottom:12px;"><label>Client name</label><input id="t_client_name" placeholder="e.g. The Hendersons, Cedar City"></div>
+    <div class="field" style="margin-bottom:12px;">
+      <label>Related property (optional)</label>
+      <select id="t_property_id"><option value="">None</option></select>
+    </div>
+    <div class="field" style="margin-bottom:12px;"><label>Testimonial</label><textarea id="t_quote" rows="4" placeholder="Paste the client's testimonial here"></textarea></div>
+    <div class="form-actions">
+      <button class="btn-sm" id="testimonialCancelBtn">Cancel</button>
+      <button class="btn-sm primary" id="testimonialSaveBtn">Save testimonial</button>
+    </div>
+  </div>
+</div>
+
 <!-- QR code form -->
 <div class="overlay" id="qrFormOverlay">
   <div class="overlay-card" style="max-width:420px;">
@@ -275,6 +314,8 @@ async function checkAuth() {
     adminApp.classList.remove('hidden');
     loadProperties();
     loadQrCodes();
+    loadTestimonials();
+    loadScottSettings();
   } else {
     gate.classList.remove('hidden');
     adminApp.classList.add('hidden');
@@ -603,6 +644,137 @@ document.getElementById('propertySaveBtn').addEventListener('click', async () =>
     toast('Save failed — check your connection and try again.');
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = 'Save property';
+  }
+});
+
+/* ============================================================
+   Testimonials
+   ============================================================ */
+let TESTIMONIALS = [];
+const testimonialOverlay = document.getElementById('testimonialOverlay');
+let editingTestimonialId = null;
+
+async function loadTestimonials() {
+  const { data, error } = await sb.from('testimonials').select('*').order('created_at', { ascending: false });
+  const listEl = document.getElementById('testimonialList');
+  if (error) { listEl.innerHTML = '<div class="state-msg-inline">Could not load testimonials.</div>'; console.error(error); return; }
+  TESTIMONIALS = data || [];
+  renderTestimonialList();
+}
+
+function renderTestimonialList() {
+  const listEl = document.getElementById('testimonialList');
+  if (!TESTIMONIALS.length) { listEl.innerHTML = '<div class="state-msg-inline">No testimonials yet — add your first one above.</div>'; return; }
+  listEl.innerHTML = TESTIMONIALS.map(t => {
+    const prop = (PROPERTIES || []).find(p => p.id === t.property_id);
+    return `<div class="list-row" data-id="${t.id}">
+      <div class="row-main">
+        <div class="row-addr">${Stratum.esc(t.client_name)}</div>
+        <div class="row-meta" style="font-family:var(--body);font-style:italic;">&ldquo;${Stratum.esc(t.quote.length > 120 ? t.quote.slice(0, 117) + '…' : t.quote)}&rdquo;</div>
+        ${prop ? `<div class="row-badges">Re: ${Stratum.esc(prop.addr)}</div>` : ''}
+      </div>
+      <div class="row-actions">
+        <button class="btn-sm" data-edit-t="${t.id}">Edit</button>
+        <button class="btn-sm danger" data-delete-t="${t.id}">Delete</button>
+      </div>
+    </div>`;
+  }).join('');
+  listEl.querySelectorAll('[data-edit-t]').forEach(btn => btn.addEventListener('click', () => openTestimonialForm(btn.dataset.editT)));
+  listEl.querySelectorAll('[data-delete-t]').forEach(btn => btn.addEventListener('click', () => deleteTestimonial(btn.dataset.deleteT)));
+}
+
+async function deleteTestimonial(id) {
+  const t = TESTIMONIALS.find(x => x.id === id);
+  if (!t || !confirm(`Delete the testimonial from "${t.client_name}"?`)) return;
+  const { error } = await sb.from('testimonials').delete().eq('id', id);
+  if (error) { toast('Delete failed'); console.error(error); return; }
+  TESTIMONIALS = TESTIMONIALS.filter(x => x.id !== id);
+  renderTestimonialList();
+  toast('Testimonial deleted');
+}
+
+function openTestimonialForm(id) {
+  editingTestimonialId = id || null;
+  document.getElementById('testimonialFormTitle').textContent = id ? 'Edit testimonial' : 'Add testimonial';
+  const propSelect = document.getElementById('t_property_id');
+  propSelect.innerHTML = '<option value="">None</option>' + (PROPERTIES || []).map(p => `<option value="${p.id}">${Stratum.esc(p.addr)}</option>`).join('');
+  if (id) {
+    const t = TESTIMONIALS.find(x => x.id === id);
+    document.getElementById('t_client_name').value = t.client_name || '';
+    document.getElementById('t_quote').value = t.quote || '';
+    propSelect.value = t.property_id || '';
+  } else {
+    document.getElementById('t_client_name').value = '';
+    document.getElementById('t_quote').value = '';
+    propSelect.value = '';
+  }
+  testimonialOverlay.classList.add('open');
+}
+document.getElementById('addTestimonialBtn').addEventListener('click', () => openTestimonialForm(null));
+document.getElementById('testimonialCancelBtn').addEventListener('click', () => testimonialOverlay.classList.remove('open'));
+
+document.getElementById('testimonialSaveBtn').addEventListener('click', async () => {
+  const client_name = document.getElementById('t_client_name').value.trim();
+  const quote = document.getElementById('t_quote').value.trim();
+  const property_id = document.getElementById('t_property_id').value || null;
+  if (!client_name || !quote) { toast('Enter a client name and testimonial'); return; }
+  const saveBtn = document.getElementById('testimonialSaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+  try {
+    const row = { client_name, quote, property_id };
+    let error;
+    if (editingTestimonialId) {
+      ({ error } = await sb.from('testimonials').update(row).eq('id', editingTestimonialId));
+    } else {
+      ({ error } = await sb.from('testimonials').insert(row));
+    }
+    if (error) throw error;
+    testimonialOverlay.classList.remove('open');
+    toast(editingTestimonialId ? 'Testimonial updated' : 'Testimonial added');
+    await loadTestimonials();
+  } catch (err) {
+    console.error(err);
+    toast('Save failed — check your connection and try again.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save testimonial';
+  }
+});
+
+/* ============================================================
+   Scott page settings (hero video)
+   ============================================================ */
+let scottVideoFile = null;
+
+async function loadScottSettings() {
+  const { data, error } = await sb.from('site_settings').select('scott_video_url').eq('id', 1).maybeSingle();
+  const statusEl = document.getElementById('scottVideoStatus');
+  if (error) { statusEl.textContent = 'Could not load current video.'; console.error(error); return; }
+  statusEl.textContent = (data && data.scott_video_url) ? 'A video is currently set.' : 'No video uploaded yet — the page will show a static photo until one is added.';
+}
+
+document.getElementById('scottVideoFile').addEventListener('change', (e) => {
+  scottVideoFile = e.target.files[0] || null;
+  const statusEl = document.getElementById('scottVideoStatus');
+  if (scottVideoFile) statusEl.textContent = `Selected: ${scottVideoFile.name} (${(scottVideoFile.size / 1024 / 1024).toFixed(1)} MB) — click Save to upload.`;
+});
+
+document.getElementById('scottVideoSaveBtn').addEventListener('click', async () => {
+  if (!scottVideoFile) { toast('Choose a video file first'); return; }
+  const saveBtn = document.getElementById('scottVideoSaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Uploading…';
+  try {
+    const url = await uploadFile('property-videos', 'scott-page', 'video', scottVideoFile);
+    const { error } = await sb.from('site_settings').update({ scott_video_url: url }).eq('id', 1);
+    if (error) throw error;
+    toast('Scott page video updated');
+    scottVideoFile = null;
+    document.getElementById('scottVideoFile').value = '';
+    await loadScottSettings();
+  } catch (err) {
+    console.error(err);
+    toast('Upload failed — check your connection and try again.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save video';
   }
 });
 

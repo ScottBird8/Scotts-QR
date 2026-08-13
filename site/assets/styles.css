@@ -417,6 +417,26 @@ footer.site-footer{max-width:1000px;margin:0 auto;padding:24px 28px 40px;border-
    so pages need a real loading state while Supabase data is fetched) ---- */
 .state-msg{max-width:600px;margin:80px auto;text-align:center;color:var(--charcoal-soft);font-family:var(--mono);font-size:13px;}
 
+/* ---- testimonials (homepage rotating strip + full grid on /scott) ---- */
+.testimonials-section{max-width:1000px;margin:0 auto;padding:20px 28px 10px;}
+.testimonials-section .section-head{text-align:center;}
+.t-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;}
+.t-card{background:var(--maroon-wash);border:1px solid var(--maroon);border-radius:var(--radius);padding:20px 20px;}
+.t-card .quote{font-family:var(--display);font-size:14.5px;font-style:italic;color:var(--charcoal);line-height:1.5;margin-bottom:12px;}
+.t-card .who{font-family:var(--mono);font-size:11px;color:var(--maroon);text-transform:uppercase;letter-spacing:0.04em;}
+.t-dots{display:flex;justify-content:center;gap:7px;margin:20px 0 6px;}
+.t-dots span{width:7px;height:7px;border-radius:50%;background:var(--line-bright);display:inline-block;}
+.t-dots span.active{background:var(--maroon);}
+@media (max-width:900px){.t-grid{grid-template-columns:repeat(2,1fr);}}
+@media (max-width:640px){.t-grid{grid-template-columns:1fr;}}
+
+/* ---- /scott marketing page hero ---- */
+.scott-hero{display:grid;grid-template-columns:1.3fr 0.7fr;gap:28px;align-items:stretch;margin-bottom:12px;}
+.scott-copy{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);padding:32px;display:flex;flex-direction:column;justify-content:center;}
+.scott-copy h1{font-family:var(--display);font-weight:700;font-size:clamp(26px,3vw,36px);line-height:1.1;margin:0 0 16px;}
+.scott-copy p{color:var(--charcoal-soft);font-size:15.5px;line-height:1.6;margin:0 0 22px;}
+@media (max-width:940px){.scott-hero{grid-template-columns:1fr;}}
+
 @media (max-width:940px){
   .hero{grid-template-columns:1fr;}
   .hero-video-wrap{max-width:200px;margin:0;}

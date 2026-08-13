@@ -68,6 +68,7 @@ const Stratum = (function () {
       <div class="hamburger-dropdown" id="hamburgerDropdown">
         <a href="index.html">Home</a>
         <a href="index.html#contact">Contact Scott</a>
+        <a href="https://scottbird.buyutahrealestate.com/listing" target="_blank" rel="noopener">Search all MLS listings</a>
       </div>
     </div>
     <nav class="site-nav">
@@ -373,11 +374,18 @@ const Stratum = (function () {
     </div>`;
   }
 
+  function renderTestimonialCard(t) {
+    return `<div class="t-card">
+      <div class="quote">&ldquo;${esc(t.quote)}&rdquo;</div>
+      <div class="who">&mdash; ${esc(t.client_name)}</div>
+    </div>`;
+  }
+
   return {
     esc, TYPE_LABEL, PHONE, PHONE_DISPLAY, EMAIL,
     renderHeader, wireHeader, renderFooter, renderContact,
     chatWidgetHtml, wireChatWidget,
     initHomeVideo, initPropertyVideo, initMatterport, initGallery,
-    renderFacts, renderRooms, renderOtherListings,
+    renderFacts, renderRooms, renderOtherListings, renderTestimonialCard,
   };
 })();

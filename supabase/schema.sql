@@ -118,3 +118,56 @@ create policy "qr_codes_bucket_admin_only"
   to authenticated
   using (bucket_id = 'qr-codes')
   with check (bucket_id = 'qr-codes');
+
+-- ============================================================
+-- 4. testimonials table — rotates on the homepage, full grid on /scott
+-- ============================================================
+create table if not exists public.testimonials (
+  id           uuid primary key default gen_random_uuid(),
+  client_name  text not null,
+  quote        text not null,
+  property_id  text references public.properties(id) on delete set null,
+  created_at   timestamptz not null default now()
+);
+
+alter table public.testimonials enable row level security;
+
+drop policy if exists "testimonials_public_read" on public.testimonials;
+create policy "testimonials_public_read"
+  on public.testimonials for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "testimonials_admin_write" on public.testimonials;
+create policy "testimonials_admin_write"
+  on public.testimonials for all
+  to authenticated
+  using (true)
+  with check (true);
+
+-- ============================================================
+-- 5. site_settings — a single row of site-wide values (currently just
+--    the /scott marketing page's hero video)
+-- ============================================================
+create table if not exists public.site_settings (
+  id              int primary key default 1,
+  scott_video_url text,
+  constraint site_settings_singleton check (id = 1)
+);
+
+insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+
+alter table public.site_settings enable row level security;
+
+drop policy if exists "site_settings_public_read" on public.site_settings;
+create policy "site_settings_public_read"
+  on public.site_settings for select
+  to anon, authenticated
+  using (true);
+
+drop policy if exists "site_settings_admin_write" on public.site_settings;
+create policy "site_settings_admin_write"
+  on public.site_settings for all
+  to authenticated
+  using (true)
+  with check (true);

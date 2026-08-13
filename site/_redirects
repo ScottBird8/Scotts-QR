@@ -20,3 +20,9 @@
 /listing-sodanerd.html                       /listing.html?id=sodanerd                        302
 /listing-steamengine.html                    /listing.html?id=steamengine                     302
 /listing-tumbleweed.html                     /listing.html?id=tumbleweed                      302
+
+# Clean URL for the personal marketing page. A 200 rewrite (not a redirect)
+# is fine here, unlike the listing rewrites above — scott.html has no query
+# string it needs to read, it just fetches everything from Supabase, so
+# there's nothing for a rewrite to silently drop.
+/scott                                        /scott.html                                      200

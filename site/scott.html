@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scott Bird | Stratum Real Estate — Southern Utah Realtor</title>
+<link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+</head>
+<body>
+<div id="app"><div class="state-msg">Loading&hellip;</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-client.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(async function () {
+  const app = document.getElementById('app');
+
+  const [{ data: settings }, { data: testimonials }] = await Promise.all([
+    sb.from('site_settings').select('scott_video_url').eq('id', 1).maybeSingle(),
+    sb.from('testimonials').select('*').order('created_at', { ascending: false }),
+  ]);
+
+  const videoUrl = settings && settings.scott_video_url;
+
+  const videoBlock = videoUrl
+    ? `<div class="hero-video-wrap" id="heroVideoWrap">
+        <video id="welcomeVideo" playsinline preload="metadata">
+          <source src="${Stratum.esc(videoUrl)}" type="video/mp4">
+        </video>
+        <div class="video-tag"><span class="dot"></span>About Scott</div>
+        <div class="play-overlay" id="playOverlay">
+          <div class="play-btn"><svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg></div>
+        </div>
+        <div class="replay-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5"/></svg></div>
+      </div>`
+    : `<div class="hero-video-wrap">
+        <img src="assets/headshot.jpg" alt="Scott Bird" style="width:100%;height:100%;object-fit:cover;">
+      </div>`;
+
+  const testimonialsSection = (testimonials && testimonials.length) ? `<div class="testimonials-section">
+      <div class="section-head">
+        <h2>What clients are saying</h2>
+        <p>Every testimonial, all in one place.</p>
+      </div>
+      <div class="t-grid">${testimonials.map(Stratum.renderTestimonialCard).join('')}</div>
+    </div>` : '';
+
+  app.innerHTML = `${Stratum.renderHeader()}
+<div class="layout">
+  <main class="content">
+    <section class="scott-hero">
+      <div class="scott-copy">
+        <div class="eyebrow">Meet your agent</div>
+        <h1>Southern Utah real estate, done right.</h1>
+        <p>I'm Scott Bird, a Cedar City &amp; Brian Head realtor with Stratum Real Estate Group. Whether you're buying your first home, selling a family property, or exploring land and investment opportunities, I bring local expertise, honest numbers, and a straightforward process from first call to closing day.</p>
+        <div class="hero-actions">
+          <a href="tel:${Stratum.PHONE}" class="btn btn-primary">Call ${Stratum.PHONE_DISPLAY}</a>
+          <a href="https://scottbird.buyutahrealestate.com/listing" target="_blank" rel="noopener" class="btn btn-ghost">Search all MLS listings</a>
+        </div>
+      </div>
+      ${videoBlock}
+    </section>
+  </main>
+</div>
+${testimonialsSection}
+${Stratum.renderContact()}
+${Stratum.renderFooter()}
+${Stratum.chatWidgetHtml(null)}`;
+
+  Stratum.wireHeader();
+  Stratum.wireChatWidget(null);
+  if (videoUrl) Stratum.initHomeVideo();
+})();
+</script>
+</body>
+</html>

@@ -20,17 +20,24 @@
 (async function () {
   const app = document.getElementById('app');
 
-  const { data: properties, error } = await sb
-    .from('properties')
-    .select('*')
-    .neq('status', 'Sold')
-    .order('created_at', { ascending: true });
+  const [{ data: properties, error }, { data: testimonials }] = await Promise.all([
+    sb.from('properties').select('*').neq('status', 'Sold').order('created_at', { ascending: true }),
+    sb.from('testimonials').select('*').order('created_at', { ascending: false }),
+  ]);
 
   if (error) {
     app.innerHTML = '<div class="state-msg">Couldn\'t load listings right now. Please try again shortly.</div>';
     console.error(error);
     return;
   }
+
+  const tChunks = [];
+  for (let i = 0; i < (testimonials || []).length; i += 3) tChunks.push(testimonials.slice(i, i + 3));
+  const testimonialsSection = tChunks.length ? `<div class="testimonials-section">
+      <div class="section-head"><h2>What clients are saying</h2></div>
+      <div class="t-grid" id="testimonialsGrid">${tChunks[0].map(Stratum.renderTestimonialCard).join('')}</div>
+      ${tChunks.length > 1 ? `<div class="t-dots" id="testimonialsDots">${tChunks.map((_, i) => `<span class="${i === 0 ? 'active' : ''}"></span>`).join('')}</div>` : ''}
+    </div>` : '';
 
   const propButtons = (properties || []).map(p => `<a class="hero-prop-btn" href="listing.html?id=${encodeURIComponent(p.id)}">
       <div class="hero-prop-thumb"><img src="${Stratum.esc(p.hero_photo_url || '')}" alt="${Stratum.esc(p.full_addr)}"></div>
@@ -71,6 +78,7 @@
     </div>
   </main>
 </div>
+${testimonialsSection}
 ${Stratum.renderContact()}
 ${Stratum.renderFooter()}
 ${Stratum.chatWidgetHtml(null)}`;
@@ -78,6 +86,15 @@ ${Stratum.chatWidgetHtml(null)}`;
   Stratum.wireHeader();
   Stratum.wireChatWidget(null);
   Stratum.initHomeVideo();
+
+  if (tChunks.length > 1) {
+    let idx = 0;
+    setInterval(() => {
+      idx = (idx + 1) % tChunks.length;
+      document.getElementById('testimonialsGrid').innerHTML = tChunks[idx].map(Stratum.renderTestimonialCard).join('');
+      document.querySelectorAll('#testimonialsDots span').forEach((el, i) => el.classList.toggle('active', i === idx));
+    }, 6000);
+  }
 })();
 </script>
 </body>
