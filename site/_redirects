@@ -1,14 +1,22 @@
-# Rewrites (200, not a redirect) so any already-printed QR codes, MLS sheets,
-# or bookmarks pointing at the old static per-property filenames keep working
-# unchanged — the URL bar stays the same, only the underlying page (which now
-# fetches live from Supabase) changes. Add a line here any time a new listing
-# needs a legacy-style URL preserved.
-/listing-1227-n-50-w.html                    /listing.html?id=1227-n-50-w-adbl                200
-/listing-150-w-ridgeview-street-119.html     /listing.html?id=150-w-ridgeview-street-119-enb7 200
-/listing-2050w.html                          /listing.html?id=2050w                           200
-/listing-5225w.html                          /listing.html?id=5225w                           200
-/listing-5300w.html                          /listing.html?id=5300w                           200
-/listing-mountainview.html                   /listing.html?id=mountainview                    200
-/listing-sodanerd.html                       /listing.html?id=sodanerd                        200
-/listing-steamengine.html                    /listing.html?id=steamengine                     200
-/listing-tumbleweed.html                     /listing.html?id=tumbleweed                      200
+# Redirects (302) so any already-printed QR codes, MLS sheets, or bookmarks
+# pointing at the old static per-property filenames keep working — visitors
+# land on the live, Supabase-backed listing page instead of a dead link.
+#
+# Note: these are real redirects, not silent rewrites — a "200 rewrite" was
+# tried first but doesn't work here, because it serves listing.html's raw
+# file bytes without the browser ever seeing the target's "?id=..." query
+# string, so the page's own JS (which reads window.location.search to know
+# which property to load) never receives it. A 302 makes the browser
+# actually navigate to the new URL, so the query string arrives correctly.
+# The address bar changes, but the old link still lands on the right listing.
+#
+# Add a line here any time a new listing needs a legacy-style URL preserved.
+/listing-1227-n-50-w.html                    /listing.html?id=1227-n-50-w-adbl                302
+/listing-150-w-ridgeview-street-119.html     /listing.html?id=150-w-ridgeview-street-119-enb7 302
+/listing-2050w.html                          /listing.html?id=2050w                           302
+/listing-5225w.html                          /listing.html?id=5225w                           302
+/listing-5300w.html                          /listing.html?id=5300w                           302
+/listing-mountainview.html                   /listing.html?id=mountainview                    302
+/listing-sodanerd.html                       /listing.html?id=sodanerd                        302
+/listing-steamengine.html                    /listing.html?id=steamengine                     302
+/listing-tumbleweed.html                     /listing.html?id=tumbleweed                      302
