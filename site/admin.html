@@ -124,13 +124,22 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
     </div>
 
     <div class="tab-panel" id="tab-scottpage">
-      <div class="overlay-card" style="max-width:520px;padding:24px;">
-        <h2 style="font-size:16px;">Scott page video</h2>
-        <p class="field-hint">The welcome video shown on your personal marketing page (utahrealestate.us/scott). Separate from the homepage welcome video.</p>
-        <input type="file" id="scottVideoFile" accept="video/*">
-        <div id="scottVideoStatus" class="field-hint" style="margin-top:8px;"></div>
+      <div class="overlay-card" style="max-width:560px;padding:24px;">
+        <h2 style="font-size:16px;">Scott page content</h2>
+        <p class="field-hint" style="margin-bottom:16px;">Everything shown on your personal marketing page (utahrealestate.us/scott).</p>
+
+        <div class="field" style="margin-bottom:12px;"><label>Eyebrow label</label><input id="scott_eyebrow" placeholder="Meet your agent"></div>
+        <div class="field" style="margin-bottom:12px;"><label>Headline</label><input id="scott_heading" placeholder="Southern Utah real estate, done right."></div>
+        <div class="field" style="margin-bottom:16px;"><label>Description</label><textarea id="scott_description" rows="5"></textarea></div>
+
+        <div class="field" style="margin-bottom:8px;">
+          <label>Welcome video</label>
+          <input type="file" id="scottVideoFile" accept="video/*">
+          <div id="scottVideoStatus" class="field-hint" style="margin-top:6px;">Separate from the homepage welcome video. Shows your photo until one is uploaded.</div>
+        </div>
+
         <div class="form-actions" style="justify-content:flex-start;">
-          <button class="btn-sm primary" id="scottVideoSaveBtn">Save video</button>
+          <button class="btn-sm primary" id="scottVideoSaveBtn">Save changes</button>
         </div>
       </div>
     </div>
@@ -746,9 +755,12 @@ document.getElementById('testimonialSaveBtn').addEventListener('click', async ()
 let scottVideoFile = null;
 
 async function loadScottSettings() {
-  const { data, error } = await sb.from('site_settings').select('scott_video_url').eq('id', 1).maybeSingle();
+  const { data, error } = await sb.from('site_settings').select('*').eq('id', 1).maybeSingle();
   const statusEl = document.getElementById('scottVideoStatus');
-  if (error) { statusEl.textContent = 'Could not load current video.'; console.error(error); return; }
+  if (error) { statusEl.textContent = 'Could not load current settings.'; console.error(error); return; }
+  document.getElementById('scott_eyebrow').value = (data && data.scott_eyebrow) || '';
+  document.getElementById('scott_heading').value = (data && data.scott_heading) || '';
+  document.getElementById('scott_description').value = (data && data.scott_description) || '';
   statusEl.textContent = (data && data.scott_video_url) ? 'A video is currently set.' : 'No video uploaded yet — the page will show a static photo until one is added.';
 }
 
@@ -759,22 +771,26 @@ document.getElementById('scottVideoFile').addEventListener('change', (e) => {
 });
 
 document.getElementById('scottVideoSaveBtn').addEventListener('click', async () => {
-  if (!scottVideoFile) { toast('Choose a video file first'); return; }
   const saveBtn = document.getElementById('scottVideoSaveBtn');
-  saveBtn.disabled = true; saveBtn.textContent = 'Uploading…';
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
   try {
-    const url = await uploadFile('property-videos', 'scott-page', 'video', scottVideoFile);
-    const { error } = await sb.from('site_settings').update({ scott_video_url: url }).eq('id', 1);
+    const row = {
+      scott_eyebrow: document.getElementById('scott_eyebrow').value.trim(),
+      scott_heading: document.getElementById('scott_heading').value.trim(),
+      scott_description: document.getElementById('scott_description').value.trim(),
+    };
+    if (scottVideoFile) row.scott_video_url = await uploadFile('property-videos', 'scott-page', 'video', scottVideoFile);
+    const { error } = await sb.from('site_settings').update(row).eq('id', 1);
     if (error) throw error;
-    toast('Scott page video updated');
+    toast('Scott page updated');
     scottVideoFile = null;
     document.getElementById('scottVideoFile').value = '';
     await loadScottSettings();
   } catch (err) {
     console.error(err);
-    toast('Upload failed — check your connection and try again.');
+    toast('Save failed — check your connection and try again.');
   } finally {
-    saveBtn.disabled = false; saveBtn.textContent = 'Save video';
+    saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
   }
 });
 

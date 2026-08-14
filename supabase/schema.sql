@@ -146,8 +146,8 @@ create policy "testimonials_admin_write"
   with check (true);
 
 -- ============================================================
--- 5. site_settings — a single row of site-wide values (currently just
---    the /scott marketing page's hero video)
+-- 5. site_settings — a single row of site-wide values: the /scott
+--    marketing page's hero video and its editable text content
 -- ============================================================
 create table if not exists public.site_settings (
   id              int primary key default 1,
@@ -156,6 +156,13 @@ create table if not exists public.site_settings (
 );
 
 insert into public.site_settings (id) values (1) on conflict (id) do nothing;
+
+alter table public.site_settings add column if not exists scott_eyebrow text
+  default 'Meet your agent';
+alter table public.site_settings add column if not exists scott_heading text
+  default 'Southern Utah real estate, done right.';
+alter table public.site_settings add column if not exists scott_description text
+  default 'I''m Scott Bird, a Cedar City & Brian Head realtor with Stratum Real Estate Group. Whether you''re buying your first home, selling a family property, or exploring land and investment opportunities, I bring local expertise, honest numbers, and a straightforward process from first call to closing day.';
 
 alter table public.site_settings enable row level security;
 

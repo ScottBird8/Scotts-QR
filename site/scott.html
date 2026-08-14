@@ -21,11 +21,15 @@
   const app = document.getElementById('app');
 
   const [{ data: settings }, { data: testimonials }] = await Promise.all([
-    sb.from('site_settings').select('scott_video_url').eq('id', 1).maybeSingle(),
+    sb.from('site_settings').select('scott_video_url, scott_eyebrow, scott_heading, scott_description').eq('id', 1).maybeSingle(),
     sb.from('testimonials').select('*').order('created_at', { ascending: false }),
   ]);
 
   const videoUrl = settings && settings.scott_video_url;
+  const eyebrow = (settings && settings.scott_eyebrow) || 'Meet your agent';
+  const heading = (settings && settings.scott_heading) || 'Southern Utah real estate, done right.';
+  const description = (settings && settings.scott_description) ||
+    "I'm Scott Bird, a Cedar City & Brian Head realtor with Stratum Real Estate Group. Whether you're buying your first home, selling a family property, or exploring land and investment opportunities, I bring local expertise, honest numbers, and a straightforward process from first call to closing day.";
 
   const videoBlock = videoUrl
     ? `<div class="hero-video-wrap" id="heroVideoWrap">
@@ -55,9 +59,9 @@
   <main class="content">
     <section class="scott-hero">
       <div class="scott-copy">
-        <div class="eyebrow">Meet your agent</div>
-        <h1>Southern Utah real estate, done right.</h1>
-        <p>I'm Scott Bird, a Cedar City &amp; Brian Head realtor with Stratum Real Estate Group. Whether you're buying your first home, selling a family property, or exploring land and investment opportunities, I bring local expertise, honest numbers, and a straightforward process from first call to closing day.</p>
+        <div class="eyebrow">${Stratum.esc(eyebrow)}</div>
+        <h1>${Stratum.esc(heading)}</h1>
+        <p style="white-space:pre-wrap;">${Stratum.esc(description)}</p>
         <div class="hero-actions">
           <a href="tel:${Stratum.PHONE}" class="btn btn-primary">Call ${Stratum.PHONE_DISPLAY}</a>
           <a href="https://scottbird.buyutahrealestate.com/listing" target="_blank" rel="noopener" class="btn btn-ghost">Search all MLS listings</a>

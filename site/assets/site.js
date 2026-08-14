@@ -68,6 +68,7 @@ const Stratum = (function () {
       <div class="hamburger-dropdown" id="hamburgerDropdown">
         <a href="index.html">Home</a>
         <a href="index.html#contact">Contact Scott</a>
+        <a href="scott.html">Meet Scott</a>
         <a href="https://scottbird.buyutahrealestate.com/listing" target="_blank" rel="noopener">Search all MLS listings</a>
       </div>
     </div>
