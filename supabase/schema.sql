@@ -217,6 +217,12 @@ create policy "qr_scans_admin_read"
   to authenticated
   using (true);
 
+drop policy if exists "qr_scans_admin_delete" on public.qr_scans;
+create policy "qr_scans_admin_delete"
+  on public.qr_scans for delete
+  to authenticated
+  using (true);
+
 -- Small key/value config table. Holds the private "web app" URL of your
 -- Google Apps Script (see below) so the notify function knows where to send
 -- the scan alert.

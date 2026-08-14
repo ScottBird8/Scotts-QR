@@ -1048,12 +1048,22 @@ async function loadQrScans() {
     .limit(50);
   if (error) { console.error(error); listEl.innerHTML = '<div class="state-msg-inline">Couldn\'t load scan history.</div>'; return; }
   if (!data || !data.length) { listEl.innerHTML = '<div class="state-msg-inline">No scans logged yet.</div>'; return; }
-  listEl.innerHTML = data.map(s => `<div class="list-row">
+  listEl.innerHTML = data.map(s => `<div class="list-row" data-scan-id="${s.id}">
       <div class="row-main">
         <div class="row-addr">${Stratum.esc(s.qr_codes ? s.qr_codes.label : 'Deleted QR code')}</div>
         <div class="row-meta">${new Date(s.scanned_at).toLocaleString()}</div>
       </div>
+      <div class="row-actions">
+        <button class="btn-sm danger" data-delete-scan="${s.id}">Delete</button>
+      </div>
     </div>`).join('');
+  listEl.querySelectorAll('[data-delete-scan]').forEach(btn => btn.addEventListener('click', () => deleteQrScan(btn.dataset.deleteScan)));
+}
+
+async function deleteQrScan(id) {
+  const { error } = await sb.from('qr_scans').delete().eq('id', id);
+  if (error) { toast('Delete failed'); console.error(error); return; }
+  await loadQrScans();
 }
 
 async function deleteQr(id) {
