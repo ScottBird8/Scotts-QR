@@ -22,7 +22,7 @@
 
   const [{ data: settings }, { data: testimonials }] = await Promise.all([
     sb.from('site_settings').select('scott_video_url, scott_eyebrow, scott_heading, scott_description').eq('id', 1).maybeSingle(),
-    sb.from('testimonials').select('*').order('created_at', { ascending: false }),
+    sb.from('testimonials').select('*').order('quote_length', { ascending: true }),
   ]);
 
   const videoUrl = settings && settings.scott_video_url;

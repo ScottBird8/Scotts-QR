@@ -130,6 +130,12 @@ create table if not exists public.testimonials (
   created_at   timestamptz not null default now()
 );
 
+-- Ordering by this groups similarly-sized quotes together wherever
+-- testimonials are displayed, so a grid row never pairs one long card with
+-- two short ones.
+alter table public.testimonials add column if not exists quote_length int
+  generated always as (char_length(quote)) stored;
+
 alter table public.testimonials enable row level security;
 
 drop policy if exists "testimonials_public_read" on public.testimonials;
