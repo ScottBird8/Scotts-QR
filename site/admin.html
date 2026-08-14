@@ -150,6 +150,10 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
         <button class="btn-sm primary" id="qrNewBtn">+ New QR code</button>
       </div>
       <div id="qrList"><div class="state-msg-inline">Loading&hellip;</div></div>
+
+      <h2 style="font-size:16px;margin:28px 0 10px;">Recent scans</h2>
+      <p class="field-hint" style="margin-bottom:12px;">Every time someone lands on a page via one of your QR codes, it's logged here (and you get an email the moment it happens, once notifications are set up — see schema.sql for setup steps).</p>
+      <div id="qrScanList"><div class="state-msg-inline">Loading&hellip;</div></div>
     </div>
 
     <div class="tab-panel" id="tab-import">
@@ -323,6 +327,7 @@ async function checkAuth() {
     adminApp.classList.remove('hidden');
     loadProperties();
     loadQrCodes();
+    loadQrScans();
     loadTestimonials();
     loadScottSettings();
   } else {
@@ -1034,6 +1039,23 @@ function renderQrList() {
   listEl.querySelectorAll('[data-delete-qr]').forEach(btn => btn.addEventListener('click', () => deleteQr(btn.dataset.deleteQr)));
 }
 
+async function loadQrScans() {
+  const listEl = document.getElementById('qrScanList');
+  const { data, error } = await sb
+    .from('qr_scans')
+    .select('id, scanned_at, qr_codes(label, url)')
+    .order('scanned_at', { ascending: false })
+    .limit(50);
+  if (error) { console.error(error); listEl.innerHTML = '<div class="state-msg-inline">Couldn\'t load scan history.</div>'; return; }
+  if (!data || !data.length) { listEl.innerHTML = '<div class="state-msg-inline">No scans logged yet.</div>'; return; }
+  listEl.innerHTML = data.map(s => `<div class="list-row">
+      <div class="row-main">
+        <div class="row-addr">${Stratum.esc(s.qr_codes ? s.qr_codes.label : 'Deleted QR code')}</div>
+        <div class="row-meta">${new Date(s.scanned_at).toLocaleString()}</div>
+      </div>
+    </div>`).join('');
+}
+
 async function deleteQr(id) {
   const q = QR_CODES.find(x => x.id === id);
   if (!q || !confirm(`Delete the QR code "${q.label}"?`)) return;
@@ -1059,6 +1081,7 @@ function loadImage(src) {
 
 let previewedUrl = null;
 let previewCanvas = null;
+let previewedId = null;
 
 function openQrForm() {
   document.getElementById('qr_label').value = '';
@@ -1067,7 +1090,7 @@ function openQrForm() {
   document.getElementById('qrResultWrap').style.display = 'none';
   document.getElementById('qrCodeContainer').innerHTML = '';
   document.getElementById('qrSaveBtn').classList.add('hidden');
-  previewedUrl = null; previewCanvas = null;
+  previewedUrl = null; previewCanvas = null; previewedId = null;
   qrFormOverlay.classList.add('open');
 }
 document.getElementById('qrNewBtn').addEventListener('click', openQrForm);
@@ -1082,9 +1105,14 @@ document.getElementById('qrGenerateBtn').addEventListener('click', async () => {
   document.getElementById('qr_url').value = url;
   if (typeof QRCode === 'undefined') { toast('Could not load the QR library — check your connection.'); return; }
 
+  // Bake a per-code tracking id into the encoded URL (not the displayed one) so we
+  // can tell which physical QR code was scanned when the page logs the visit.
+  const qrId = crypto.randomUUID();
+  const trackedUrl = url + (url.includes('?') ? '&' : '?') + 'qr=' + qrId;
+
   const container = document.getElementById('qrCodeContainer');
   container.innerHTML = '';
-  new QRCode(container, { text: url, width: 240, height: 240, colorDark: '#363636', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
+  new QRCode(container, { text: trackedUrl, width: 240, height: 240, colorDark: '#363636', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.H });
   await new Promise(r => setTimeout(r, 60)); // qrcodejs renders async
 
   const qrCanvas = container.querySelector('canvas');
@@ -1107,6 +1135,7 @@ document.getElementById('qrGenerateBtn').addEventListener('click', async () => {
 
   previewedUrl = url;
   previewCanvas = qrCanvas;
+  previewedId = qrId;
   document.getElementById('qrResultWrap').style.display = 'flex';
   document.getElementById('qrSaveBtn').classList.remove('hidden');
 });
@@ -1124,7 +1153,7 @@ document.getElementById('qrSaveBtn').addEventListener('click', async () => {
     if (upErr) throw upErr;
     const { data: signed, error: signErr } = await sb.storage.from('qr-codes').createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
     if (signErr) throw signErr;
-    const { error: dbErr } = await sb.from('qr_codes').insert({ label, url, image_url: signed.signedUrl });
+    const { error: dbErr } = await sb.from('qr_codes').insert({ id: previewedId, label, url, image_url: signed.signedUrl });
     if (dbErr) throw dbErr;
 
     const a = document.createElement('a');

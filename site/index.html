@@ -19,6 +19,7 @@
 <script>
 (async function () {
   const app = document.getElementById('app');
+  Stratum.logQrScan();
 
   const [{ data: properties, error }, { data: testimonials }] = await Promise.all([
     sb.from('properties').select('*').neq('status', 'Sold').order('created_at', { ascending: true }),

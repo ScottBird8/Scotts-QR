@@ -28,6 +28,7 @@
 <script>
 (async function () {
   document.getElementById('footerMount').outerHTML = Stratum.renderFooter();
+  Stratum.logQrScan();
 
   const titleEl = document.getElementById('locateTitle');
   const subEl = document.getElementById('locateSub');

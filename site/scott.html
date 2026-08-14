@@ -19,6 +19,7 @@
 <script>
 (async function () {
   const app = document.getElementById('app');
+  Stratum.logQrScan();
 
   const [{ data: settings }, { data: testimonials }] = await Promise.all([
     sb.from('site_settings').select('scott_video_url, scott_eyebrow, scott_heading, scott_description').eq('id', 1).maybeSingle(),

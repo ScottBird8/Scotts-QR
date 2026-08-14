@@ -21,6 +21,7 @@
 (async function () {
   const app = document.getElementById('app');
   const esc = Stratum.esc;
+  Stratum.logQrScan();
   const id = new URLSearchParams(window.location.search).get('id');
 
   if (!id) {

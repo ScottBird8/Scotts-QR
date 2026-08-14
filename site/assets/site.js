@@ -409,11 +409,21 @@ const Stratum = (function () {
     </div>`;
   }
 
+  async function logQrScan() {
+    const params = new URLSearchParams(window.location.search);
+    const qrId = params.get('qr');
+    if (!qrId) return;
+    try { await sb.from('qr_scans').insert({ qr_code_id: qrId }); } catch (e) { console.error(e); }
+    params.delete('qr');
+    const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
+    window.history.replaceState({}, '', clean);
+  }
+
   return {
     esc, TYPE_LABEL, PHONE, PHONE_DISPLAY, EMAIL,
     renderHeader, wireHeader, renderFooter, renderContact,
     chatWidgetHtml, wireChatWidget,
     initHomeVideo, initScottVideo, initPropertyVideo, initMatterport, initGallery,
-    renderFacts, renderRooms, renderOtherListings, renderTestimonialCard,
+    renderFacts, renderRooms, renderOtherListings, renderTestimonialCard, logQrScan,
   };
 })();
