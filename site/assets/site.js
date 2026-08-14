@@ -67,7 +67,6 @@ const Stratum = (function () {
       </a>
       <div class="hamburger-dropdown" id="hamburgerDropdown">
         <a href="index.html">Home</a>
-        <a href="index.html#contact">Contact Scott</a>
         <a href="scott.html">Meet Scott</a>
         <a href="https://scottbird.buyutahrealestate.com/listing" target="_blank" rel="noopener">Search all MLS listings</a>
       </div>
@@ -256,6 +255,34 @@ const Stratum = (function () {
     });
   }
 
+  // /scott page video: same play/pause interaction as the homepage one,
+  // but deliberately never shrinks into the small floating box -- stays at
+  // full size both while playing and after it ends.
+  function initScottVideo() {
+    const wrap = document.getElementById('heroVideoWrap');
+    const video = document.getElementById('welcomeVideo');
+    const overlay = document.getElementById('playOverlay');
+    if (!wrap || !video) return;
+
+    function setPaused(isPaused) { wrap.classList.toggle('is-paused', isPaused); }
+    function playFull() {
+      overlay.classList.add('hidden');
+      setPaused(false);
+      video.currentTime = 0;
+      const p = video.play();
+      if (p && p.catch) p.catch(() => { overlay.classList.remove('hidden'); setPaused(true); });
+    }
+
+    video.addEventListener('playing', () => { overlay.classList.add('hidden'); setPaused(false); });
+    video.addEventListener('pause', () => setPaused(true));
+    video.addEventListener('ended', () => { setPaused(true); overlay.classList.remove('hidden'); });
+
+    wrap.addEventListener('click', () => {
+      if (video.paused) { playFull(); return; }
+      video.pause();
+    });
+  }
+
   // Per-property "message from Scott" video: autoplays in full only the
   // first time a given browser visits this specific property (localStorage
   // flag keyed by property id), otherwise starts already docked small.
@@ -386,7 +413,7 @@ const Stratum = (function () {
     esc, TYPE_LABEL, PHONE, PHONE_DISPLAY, EMAIL,
     renderHeader, wireHeader, renderFooter, renderContact,
     chatWidgetHtml, wireChatWidget,
-    initHomeVideo, initPropertyVideo, initMatterport, initGallery,
+    initHomeVideo, initScottVideo, initPropertyVideo, initMatterport, initGallery,
     renderFacts, renderRooms, renderOtherListings, renderTestimonialCard,
   };
 })();
