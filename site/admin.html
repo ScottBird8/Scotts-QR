@@ -1122,7 +1122,7 @@ document.getElementById('qrGenerateBtn').addEventListener('click', async () => {
     const logoImg = await loadImage(URL.createObjectURL(logoFile));
     const ctx = qrCanvas.getContext('2d');
     const size = qrCanvas.width;
-    const logoSize = Math.round(size * 0.22);
+    const logoSize = Math.round(size * 0.30);
     const cx = (size - logoSize) / 2, cy = (size - logoSize) / 2, pad = 6;
     ctx.fillStyle = '#ffffff';
     roundRect(ctx, cx - pad, cy - pad, logoSize + pad * 2, logoSize + pad * 2, 10);
