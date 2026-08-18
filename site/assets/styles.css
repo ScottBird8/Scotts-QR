@@ -194,11 +194,11 @@ main.content{min-width:0;}
 }
 
 /* Personal welcome video. Starts covering just the right third of the hero
-   photo (uncropped — letterboxed if needed), plays there for ~5 seconds,
-   then shrinks into a small box that FLOATS over the page (follows scroll)
-   for as long as it keeps playing. Once it finishes (or is skipped), it
-   settles back into a small box docked in the photo's corner — no longer
-   floating, so it scrolls away with the rest of the photo. */
+   photo (uncropped — letterboxed if needed) and immediately pins itself to
+   that same on-screen spot via position:fixed, so it floats there (follows
+   scroll) from the very start. After ~5 seconds it shrinks into a small
+   box, still floating, docked in the page's top-right corner for as long
+   as it's on screen. */
 .hero-video-overlay{
   position:absolute;top:0;right:0;left:auto;bottom:auto;width:33.333%;height:100%;
   z-index:6;cursor:pointer;border-radius:0;overflow:hidden;
@@ -253,11 +253,15 @@ main.content{min-width:0;}
 .hero-video-overlay.small .video-toggle-btn{width:24px;height:24px;bottom:6px;right:6px;}
 .hero-video-overlay.small .video-toggle-btn svg{width:11px;height:11px;}
 
-/* Fixed to the viewport, top-right — stays put while the visitor scrolls,
-   both while still playing past the 5s mark and after it finishes (or is
-   skipped). It never docks back into the photo, so it never covers it. */
+/* Fixed to the viewport for its entire life. Right after it starts, JS pins
+   it in place at its original full size (inline top/left/width/height);
+   once shrunk, this class takes over with fixed top-right coordinates. It
+   never docks back into the photo, so it never covers it. */
+.hero-video-overlay.floating{
+  position:fixed;right:auto;bottom:auto;z-index:70;
+}
 .hero-video-overlay.small.floating{
-  position:fixed;top:80px;right:16px;left:auto;bottom:auto;z-index:70;
+  top:80px;right:16px;left:auto;bottom:auto;
 }
 @media (max-width:640px){
   .hero-video-overlay.small{width:104px;height:68px;}

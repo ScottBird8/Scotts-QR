@@ -192,6 +192,9 @@ const Stratum = (function () {
   // Per-property "message from Scott" video: autoplays in full only the
   // first time a given browser visits this specific property (localStorage
   // flag keyed by property id), otherwise starts already docked small.
+  // Floats (position:fixed, stays on screen while scrolling) for its entire
+  // life — both at full size right after it starts, and again once it
+  // shrinks a few seconds later — rather than only floating after shrinking.
   function initPropertyVideo(propertyId) {
     const KEY = 'stratum_video_seen_' + propertyId;
     const overlay = document.getElementById('heroVideoOverlay');
@@ -200,9 +203,34 @@ const Stratum = (function () {
     if (!overlay || !video) return;
     let minimizeTimer = null;
 
+    // Captured once, before any positioning classes are ever applied, so
+    // re-expanding later (e.g. clicking a shrunk video to replay it) still
+    // uses the true full size rather than measuring the already-shrunk box.
+    const baseRect = overlay.getBoundingClientRect();
+
     function setPaused(isPaused) { overlay.classList.toggle('is-paused', isPaused); }
-    function floatMinimized() { overlay.classList.add('small', 'floating'); clearTimeout(minimizeTimer); }
-    function expand() { overlay.classList.remove('small', 'floating'); }
+
+    function clearInlineRect() {
+      overlay.style.top = ''; overlay.style.left = ''; overlay.style.width = ''; overlay.style.height = '';
+    }
+
+    function floatMinimized() {
+      clearInlineRect();
+      overlay.classList.add('small', 'floating');
+      clearTimeout(minimizeTimer);
+    }
+
+    // Pins the video to its original on-screen spot and size via
+    // position:fixed, so it keeps floating there as the page scrolls
+    // instead of dropping back into the photo's flow.
+    function floatFull() {
+      overlay.classList.remove('small');
+      overlay.classList.add('floating');
+      overlay.style.left = baseRect.left + 'px';
+      overlay.style.top = Math.max(baseRect.top, 60) + 'px';
+      overlay.style.width = baseRect.width + 'px';
+      overlay.style.height = baseRect.height + 'px';
+    }
 
     // Portrait (phone-shot) videos get a taller/narrower box instead of the
     // default landscape-shaped one, once we know the video's real dimensions.
@@ -211,7 +239,7 @@ const Stratum = (function () {
     });
 
     function playFull() {
-      expand();
+      floatFull();
       overlay.classList.remove('needs-tap');
       setPaused(false);
       video.currentTime = 0;
