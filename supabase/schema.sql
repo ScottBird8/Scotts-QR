@@ -158,8 +158,11 @@ create policy "testimonials_admin_write"
 create table if not exists public.site_settings (
   id              int primary key default 1,
   scott_video_url text,
+  home_video_url  text,
   constraint site_settings_singleton check (id = 1)
 );
+
+alter table public.site_settings add column if not exists home_video_url text;
 
 insert into public.site_settings (id) values (1) on conflict (id) do nothing;
 

@@ -102,6 +102,7 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
     <div class="tabs">
       <button class="tab-btn active" data-tab="properties">Properties</button>
       <button class="tab-btn" data-tab="testimonials">Testimonials</button>
+      <button class="tab-btn" data-tab="homepage">Home Page</button>
       <button class="tab-btn" data-tab="scottpage">Scott Page</button>
       <button class="tab-btn" data-tab="qr">QR Codes</button>
       <button class="tab-btn" data-tab="import">Import Backup</button>
@@ -121,6 +122,23 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
         <button class="btn-sm primary" id="addTestimonialBtn">+ Add testimonial</button>
       </div>
       <div id="testimonialList"><div class="state-msg-inline">Loading&hellip;</div></div>
+    </div>
+
+    <div class="tab-panel" id="tab-homepage">
+      <div class="overlay-card" style="max-width:560px;padding:24px;">
+        <h2 style="font-size:16px;">Home page welcome video</h2>
+        <p class="field-hint" style="margin-bottom:16px;">The video shown at the top of the home page (utahrealestate.us). Separate from the Scott page video.</p>
+
+        <div class="field" style="margin-bottom:8px;">
+          <label>Welcome video</label>
+          <input type="file" id="homeVideoFile" accept="video/*">
+          <div id="homeVideoStatus" class="field-hint" style="margin-top:6px;">Loading&hellip;</div>
+        </div>
+
+        <div class="form-actions" style="justify-content:flex-start;">
+          <button class="btn-sm primary" id="homeVideoSaveBtn">Save changes</button>
+        </div>
+      </div>
     </div>
 
     <div class="tab-panel" id="tab-scottpage">
@@ -329,6 +347,7 @@ async function checkAuth() {
     loadQrCodes();
     loadQrScans();
     loadTestimonials();
+    loadHomeSettings();
     loadScottSettings();
   } else {
     gate.classList.remove('hidden');
@@ -751,6 +770,44 @@ document.getElementById('testimonialSaveBtn').addEventListener('click', async ()
     toast('Save failed — check your connection and try again.');
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = 'Save testimonial';
+  }
+});
+
+/* ============================================================
+   Home page settings (welcome video)
+   ============================================================ */
+let homeVideoFile = null;
+
+async function loadHomeSettings() {
+  const { data, error } = await sb.from('site_settings').select('home_video_url').eq('id', 1).maybeSingle();
+  const statusEl = document.getElementById('homeVideoStatus');
+  if (error) { statusEl.textContent = 'Could not load current settings.'; console.error(error); return; }
+  statusEl.textContent = (data && data.home_video_url) ? 'A video is currently set.' : 'No video uploaded yet — the page will show the default welcome video until one is added.';
+}
+
+document.getElementById('homeVideoFile').addEventListener('change', (e) => {
+  homeVideoFile = e.target.files[0] || null;
+  const statusEl = document.getElementById('homeVideoStatus');
+  if (homeVideoFile) statusEl.textContent = `Selected: ${homeVideoFile.name} (${(homeVideoFile.size / 1024 / 1024).toFixed(1)} MB) — click Save to upload.`;
+});
+
+document.getElementById('homeVideoSaveBtn').addEventListener('click', async () => {
+  const saveBtn = document.getElementById('homeVideoSaveBtn');
+  if (!homeVideoFile) { toast('Choose a video file first'); return; }
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
+  try {
+    const row = { home_video_url: await uploadFile('property-videos', 'home-page', 'video', homeVideoFile) };
+    const { error } = await sb.from('site_settings').update(row).eq('id', 1);
+    if (error) throw error;
+    toast('Home page video updated');
+    homeVideoFile = null;
+    document.getElementById('homeVideoFile').value = '';
+    await loadHomeSettings();
+  } catch (err) {
+    console.error(err);
+    toast('Save failed — check your connection and try again.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
   }
 });
 

@@ -21,9 +21,10 @@
   const app = document.getElementById('app');
   Stratum.logQrScan();
 
-  const [{ data: properties, error }, { data: testimonials }] = await Promise.all([
+  const [{ data: properties, error }, { data: testimonials }, { data: settings }] = await Promise.all([
     sb.from('properties').select('*').neq('status', 'Sold').order('created_at', { ascending: true }),
     sb.from('testimonials').select('*').order('quote_length', { ascending: true }),
+    sb.from('site_settings').select('home_video_url').eq('id', 1).maybeSingle(),
   ]);
 
   if (error) {
@@ -31,6 +32,8 @@
     console.error(error);
     return;
   }
+
+  const homeVideoUrl = (settings && settings.home_video_url) || 'assets/welcome-video.mp4';
 
   const tChunks = [];
   for (let i = 0; i < (testimonials || []).length; i += 3) tChunks.push(testimonials.slice(i, i + 3));
@@ -57,14 +60,17 @@
   <main class="content">
     <section class="hero">
       <div class="hero-listings-panel">
-        <h2>Listings</h2>
+        <div class="listings-panel-head">
+          <h2>My Listings</h2>
+          <a href="https://scottbird.buyutahrealestate.com/listing" target="_blank" rel="noopener">All Realtor/MLS Listings</a>
+        </div>
         <div class="hero-prop-list">
           ${propButtons || '<div class="state-msg" style="margin:20px 4px;">No active listings right now — check back soon.</div>'}
         </div>
       </div>
       <div class="hero-video-wrap" id="heroVideoWrap">
         <video id="welcomeVideo" playsinline preload="metadata">
-          <source src="assets/welcome-video.mp4" type="video/mp4">
+          <source src="${Stratum.esc(homeVideoUrl)}" type="video/mp4">
         </video>
         <div class="video-tag"><span class="dot"></span>Welcome</div>
         <div class="play-overlay" id="playOverlay">
@@ -85,11 +91,9 @@
 </div>
 ${testimonialsSection}
 ${Stratum.renderContact()}
-${Stratum.renderFooter()}
-${Stratum.chatWidgetHtml(null)}`;
+${Stratum.renderFooter()}`;
 
   Stratum.wireHeader();
-  Stratum.wireChatWidget(null);
   Stratum.initHomeVideo();
 
   if (tChunks.length > 1) {
