@@ -207,6 +207,8 @@ const Stratum = (function () {
     // re-expanding later (e.g. clicking a shrunk video to replay it) still
     // uses the true full size rather than measuring the already-shrunk box.
     const baseRect = overlay.getBoundingClientRect();
+    const headerEl = document.querySelector('.site-header');
+    const minTop = (headerEl ? headerEl.getBoundingClientRect().bottom : 60) + 10;
 
     function setPaused(isPaused) { overlay.classList.toggle('is-paused', isPaused); }
 
@@ -222,12 +224,15 @@ const Stratum = (function () {
 
     // Pins the video to its original on-screen spot and size via
     // position:fixed, so it keeps floating there as the page scrolls
-    // instead of dropping back into the photo's flow.
+    // instead of dropping back into the photo's flow. Clamped so it can
+    // never render past the edge of the screen on any device width.
     function floatFull() {
       overlay.classList.remove('small');
       overlay.classList.add('floating');
-      overlay.style.left = baseRect.left + 'px';
-      overlay.style.top = Math.max(baseRect.top, 60) + 'px';
+      const margin = 8;
+      const maxLeft = Math.max(window.innerWidth - baseRect.width - margin, margin);
+      overlay.style.left = Math.min(Math.max(baseRect.left, margin), maxLeft) + 'px';
+      overlay.style.top = Math.max(baseRect.top, minTop) + 'px';
       overlay.style.width = baseRect.width + 'px';
       overlay.style.height = baseRect.height + 'px';
     }

@@ -194,19 +194,24 @@ main.content{min-width:0;}
 }
 
 /* Personal welcome video. Starts covering just the right third of the hero
-   photo (uncropped — letterboxed if needed) and immediately pins itself to
-   that same on-screen spot via position:fixed, so it floats there (follows
-   scroll) from the very start. After ~5 seconds it shrinks into a small
-   box, still floating, docked in the page's top-right corner for as long
-   as it's on screen. */
+   photo (uncropped — letterboxed if needed), inset slightly from the
+   photo's top/right/bottom edges so it reads as a distinct floating card
+   rather than sitting flush in the photo's own frame, and immediately pins
+   itself to that same on-screen spot via position:fixed, so it floats
+   there (follows scroll) from the very start. After ~5 seconds it shrinks
+   into a small box, still floating, docked in the page's top-right corner
+   for as long as it's on screen. */
 .hero-video-overlay{
-  position:absolute;top:0;right:0;left:auto;bottom:auto;width:33.333%;height:100%;
-  z-index:6;cursor:pointer;border-radius:0;overflow:hidden;
+  position:absolute;top:14px;right:14px;left:auto;bottom:auto;
+  width:calc(33.333% - 14px);height:calc(100% - 28px);
+  z-index:6;cursor:pointer;border-radius:var(--radius);overflow:hidden;
+  border:6px solid #000;
   transition:width .45s cubic-bezier(.2,.9,.25,1), height .45s cubic-bezier(.2,.9,.25,1),
              top .45s cubic-bezier(.2,.9,.25,1), right .45s cubic-bezier(.2,.9,.25,1),
-             border-radius .45s cubic-bezier(.2,.9,.25,1), box-shadow .3s;
+             border-radius .45s cubic-bezier(.2,.9,.25,1), box-shadow .3s,
+             border-width .3s, border-color .3s;
 }
-.hero-video-overlay video{width:100%;height:100%;object-fit:contain;display:block;background:#000;}
+.hero-video-overlay video{width:100%;height:100%;object-fit:cover;display:block;background:#000;}
 .hero-video-overlay .video-caption{
   position:absolute;top:10px;left:10px;background:rgba(255,255,255,0.92);backdrop-filter:blur(4px);
   padding:5px 10px;border-radius:100px;font-family:var(--mono);font-size:9.5px;letter-spacing:0.05em;
