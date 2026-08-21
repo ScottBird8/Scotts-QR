@@ -1096,24 +1096,52 @@ function renderQrList() {
   listEl.querySelectorAll('[data-delete-qr]').forEach(btn => btn.addEventListener('click', () => deleteQr(btn.dataset.deleteQr)));
 }
 
+function scanHaversine(lat1, lon1, lat2, lon2) {
+  const R = 6371000;
+  const toRad = d => d * Math.PI / 180;
+  const dLat = toRad(lat2 - lat1);
+  const dLon = toRad(lon2 - lon1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(a));
+}
+const SCAN_NEARBY_METERS = 30.48; // 100 feet, matches locate.html's own match radius
+
 async function loadQrScans() {
   const listEl = document.getElementById('qrScanList');
-  const { data, error } = await sb
-    .from('qr_scans')
-    .select('id, scanned_at, lat, lng, qr_codes(label, url)')
-    .order('scanned_at', { ascending: false })
-    .limit(50);
+  const [{ data, error }, { data: props }] = await Promise.all([
+    sb.from('qr_scans').select('id, scanned_at, lat, lng, qr_codes(label, url)').order('scanned_at', { ascending: false }).limit(50),
+    sb.from('properties').select('addr, city, lat, lng').not('lat', 'is', null).not('lng', 'is', null),
+  ]);
   if (error) { console.error(error); listEl.innerHTML = '<div class="state-msg-inline">Couldn\'t load scan history.</div>'; return; }
   if (!data || !data.length) { listEl.innerHTML = '<div class="state-msg-inline">No scans logged yet.</div>'; return; }
-  listEl.innerHTML = data.map(s => `<div class="list-row" data-scan-id="${s.id}">
+
+  function nearestListingAddr(lat, lng) {
+    if (!props || !props.length) return null;
+    let nearest = null, nearestDist = Infinity;
+    props.forEach(p => {
+      const d = scanHaversine(lat, lng, p.lat, p.lng);
+      if (d < nearestDist) { nearestDist = d; nearest = p; }
+    });
+    return (nearest && nearestDist <= SCAN_NEARBY_METERS) ? nearest.addr : null;
+  }
+
+  listEl.innerHTML = data.map(s => {
+    let locationHtml = ' &middot; Location not shared';
+    if (s.lat != null && s.lng != null) {
+      const near = nearestListingAddr(s.lat, s.lng);
+      locationHtml = ` &middot; <a href="${mapLink(s.lat, s.lng)}" target="_blank" rel="noopener">View location &rarr;</a>` +
+        (near ? ` (near ${Stratum.esc(near)})` : '');
+    }
+    return `<div class="list-row" data-scan-id="${s.id}">
       <div class="row-main">
         <div class="row-addr">${Stratum.esc(s.qr_codes ? s.qr_codes.label : 'Deleted QR code')}</div>
-        <div class="row-meta">${new Date(s.scanned_at).toLocaleString()}${(s.lat != null && s.lng != null) ? ` &middot; <a href="${mapLink(s.lat, s.lng)}" target="_blank" rel="noopener">View location &rarr;</a>` : ' &middot; Location not shared'}</div>
+        <div class="row-meta">${new Date(s.scanned_at).toLocaleString()}${locationHtml}</div>
       </div>
       <div class="row-actions">
         <button class="btn-sm danger" data-delete-scan="${s.id}">Delete</button>
       </div>
-    </div>`).join('');
+    </div>`;
+  }).join('');
   listEl.querySelectorAll('[data-delete-scan]').forEach(btn => btn.addEventListener('click', () => deleteQrScan(btn.dataset.deleteScan)));
 }
 
