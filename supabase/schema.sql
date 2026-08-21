@@ -203,8 +203,13 @@ create extension if not exists pg_net with schema extensions;
 create table if not exists public.qr_scans (
   id          uuid primary key default gen_random_uuid(),
   qr_code_id  uuid references public.qr_codes(id) on delete set null,
-  scanned_at  timestamptz not null default now()
+  scanned_at  timestamptz not null default now(),
+  lat         numeric,
+  lng         numeric
 );
+
+alter table public.qr_scans add column if not exists lat numeric;
+alter table public.qr_scans add column if not exists lng numeric;
 
 alter table public.qr_scans enable row level security;
 

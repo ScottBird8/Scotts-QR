@@ -1100,7 +1100,7 @@ async function loadQrScans() {
   const listEl = document.getElementById('qrScanList');
   const { data, error } = await sb
     .from('qr_scans')
-    .select('id, scanned_at, qr_codes(label, url)')
+    .select('id, scanned_at, lat, lng, qr_codes(label, url)')
     .order('scanned_at', { ascending: false })
     .limit(50);
   if (error) { console.error(error); listEl.innerHTML = '<div class="state-msg-inline">Couldn\'t load scan history.</div>'; return; }
@@ -1108,7 +1108,7 @@ async function loadQrScans() {
   listEl.innerHTML = data.map(s => `<div class="list-row" data-scan-id="${s.id}">
       <div class="row-main">
         <div class="row-addr">${Stratum.esc(s.qr_codes ? s.qr_codes.label : 'Deleted QR code')}</div>
-        <div class="row-meta">${new Date(s.scanned_at).toLocaleString()}</div>
+        <div class="row-meta">${new Date(s.scanned_at).toLocaleString()}${(s.lat != null && s.lng != null) ? ` &middot; <a href="${mapLink(s.lat, s.lng)}" target="_blank" rel="noopener">View location &rarr;</a>` : ' &middot; Location not shared'}</div>
       </div>
       <div class="row-actions">
         <button class="btn-sm danger" data-delete-scan="${s.id}">Delete</button>

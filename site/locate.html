@@ -28,7 +28,10 @@
 <script>
 (async function () {
   document.getElementById('footerMount').outerHTML = Stratum.renderFooter();
-  Stratum.logQrScan();
+  // Captured now (strips the tracking param from the URL immediately), but
+  // the actual scan record is only written once we know whether GPS
+  // succeeded, so it can include the coordinates when available.
+  const scannedQrId = Stratum.captureQrId();
 
   const titleEl = document.getElementById('locateTitle');
   const subEl = document.getElementById('locateSub');
@@ -56,13 +59,16 @@
   const locateProps = error ? [] : (properties || []);
 
   if (!locateProps.length) {
+    Stratum.recordQrScan(scannedQrId);
     goToFallback();
   } else if (!navigator.geolocation) {
+    Stratum.recordQrScan(scannedQrId);
     titleEl.textContent = "Location isn't available";
     subEl.textContent = 'Taking you there now.';
     setTimeout(goToFallback, 1200);
   } else {
     const timeoutId = setTimeout(() => {
+      Stratum.recordQrScan(scannedQrId);
       titleEl.textContent = "Couldn't get a location in time";
       subEl.textContent = 'Taking you there now.';
       setTimeout(goToFallback, 900);
@@ -72,6 +78,7 @@
       (pos) => {
         clearTimeout(timeoutId);
         const { latitude, longitude } = pos.coords;
+        Stratum.recordQrScan(scannedQrId, { lat: latitude, lng: longitude });
         let nearest = null, nearestDist = Infinity;
         locateProps.forEach(p => {
           const d = haversine(latitude, longitude, p.lat, p.lng);
@@ -89,6 +96,7 @@
       },
       () => {
         clearTimeout(timeoutId);
+        Stratum.recordQrScan(scannedQrId);
         titleEl.textContent = 'Location permission not granted';
         subEl.textContent = 'Taking you there now.';
         setTimeout(goToFallback, 900);

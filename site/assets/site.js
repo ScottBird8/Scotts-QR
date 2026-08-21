@@ -386,14 +386,33 @@ const Stratum = (function () {
     </div>`;
   }
 
-  async function logQrScan() {
+  // Reads the "?qr=<id>" tracking param (if present) and immediately
+  // strips it from the visible URL, without logging anything yet. Used by
+  // locate.html so it can wait to find out whether it got a GPS fix before
+  // actually recording the scan.
+  function captureQrId() {
     const params = new URLSearchParams(window.location.search);
     const qrId = params.get('qr');
-    if (!qrId) return;
-    try { await sb.from('qr_scans').insert({ qr_code_id: qrId }); } catch (e) { console.error(e); }
+    if (!qrId) return null;
     params.delete('qr');
     const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
     window.history.replaceState({}, '', clean);
+    return qrId;
+  }
+
+  // Records a scan for the given tracking id, optionally with the
+  // coordinates GPS returned (if the visitor granted location access).
+  async function recordQrScan(qrId, coords) {
+    if (!qrId) return;
+    const row = { qr_code_id: qrId };
+    if (coords) { row.lat = coords.lat; row.lng = coords.lng; }
+    try { await sb.from('qr_scans').insert(row); } catch (e) { console.error(e); }
+  }
+
+  // Simple case for pages that don't attempt geolocation: capture + log
+  // immediately, no coordinates.
+  async function logQrScan() {
+    await recordQrScan(captureQrId());
   }
 
   return {
@@ -401,5 +420,6 @@ const Stratum = (function () {
     renderHeader, wireHeader, renderFooter, renderContact,
     initHomeVideo, initScottVideo, initPropertyVideo, initMatterport, initGallery,
     renderFacts, renderRooms, renderOtherListings, renderTestimonialCard, logQrScan,
+    captureQrId, recordQrScan,
   };
 })();
