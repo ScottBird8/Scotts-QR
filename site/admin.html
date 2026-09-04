@@ -191,6 +191,15 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
     <h2 id="propertyFormTitle">Add property</h2>
     <div id="missingBanner" class="missing-banner hidden"></div>
 
+    <div class="field full" id="mlsLookupSection">
+      <label>Pull in from MLS (optional)</label>
+      <div style="display:flex;gap:8px;">
+        <input id="f_mls_lookup" placeholder="MLS #" style="flex:1;">
+        <button type="button" class="btn-sm primary" id="mlsLookupBtn" style="white-space:nowrap;">Fetch listing</button>
+      </div>
+      <div class="field-hint" id="mlsLookupStatus">Pulls the listing details and photos straight from the MLS feed. Review everything below before saving — this only fills in the form, it doesn't save anything by itself.</div>
+    </div>
+
     <div class="field full">
       <label>Import from MLS listing sheet (PDF, optional)</label>
       <input type="file" id="f_pdf_import" accept="application/pdf">
@@ -505,6 +514,8 @@ function resetPropertyForm() {
   document.getElementById('f_type').value = 'residential';
   document.getElementById('missingBanner').classList.add('hidden');
   document.getElementById('pdfImportStatus').textContent = "Best-effort — always review every field afterward. Can't extract the photo; add that separately.";
+  document.getElementById('f_mls_lookup').value = '';
+  document.getElementById('mlsLookupStatus').textContent = "Pulls the listing details and photos straight from the MLS feed. Review everything below before saving — this only fills in the form, it doesn't save anything by itself.";
   document.getElementById('f_pdf_import').value = '';
   document.getElementById('coordsAccuracyNote').innerHTML = '';
   heroFile = null; heroExistingUrl = null;
@@ -558,6 +569,10 @@ function openPropertyForm(id) {
   resetPropertyForm();
   editingId = id || null;
   document.getElementById('propertyFormTitle').textContent = id ? 'Edit property' : 'Add property';
+  // MLS pull-in only makes sense for brand-new listings — never shown while
+  // editing an existing one, so there's no way to accidentally overwrite an
+  // existing property's data from the MLS feed.
+  document.getElementById('mlsLookupSection').classList.toggle('hidden', !!id);
   if (id) {
     const p = PROPERTIES.find(x => x.id === id);
     document.getElementById('f_addr').value = p.addr || '';
@@ -594,6 +609,51 @@ function openPropertyForm(id) {
 }
 document.getElementById('addPropertyBtn').addEventListener('click', () => openPropertyForm(null));
 document.getElementById('propertyCancelBtn').addEventListener('click', () => propertyOverlay.classList.remove('open'));
+
+document.getElementById('mlsLookupBtn').addEventListener('click', async () => {
+  const mlsNumber = document.getElementById('f_mls_lookup').value.trim();
+  const statusEl = document.getElementById('mlsLookupStatus');
+  const btn = document.getElementById('mlsLookupBtn');
+  if (!mlsNumber) { toast('Enter an MLS number first'); return; }
+  btn.disabled = true; btn.textContent = 'Fetching…';
+  statusEl.textContent = 'Looking up the listing and downloading photos — this can take a few seconds…';
+  try {
+    const { data, error } = await sb.functions.invoke('mls-lookup', { body: { mlsNumber } });
+    if (error) throw error;
+    if (data && data.error) throw new Error(data.error);
+    const p = data.data;
+    document.getElementById('f_addr').value = p.addr || '';
+    document.getElementById('f_city').value = p.city || '';
+    document.getElementById('f_price').value = p.price || '';
+    document.getElementById('f_status').value = p.status || 'Active';
+    document.getElementById('f_type').value = p.type || 'residential';
+    document.getElementById('f_mls').value = p.mls || '';
+    document.getElementById('f_beds').value = p.beds || '';
+    document.getElementById('f_baths').value = p.baths || '';
+    document.getElementById('f_sqft').value = p.sqft || '';
+    document.getElementById('f_lot').value = p.lot || '';
+    document.getElementById('f_subdivision').value = p.subdivision || '';
+    document.getElementById('f_year_built').value = p.year_built || '';
+    document.getElementById('f_listed').value = p.listed || '';
+    document.getElementById('f_blurb').value = p.blurb || '';
+    document.getElementById('f_public_remarks').value = p.public_remarks || '';
+    document.getElementById('f_facts').value = (p.facts || []).map(([k, v]) => `${k}: ${v}`).join('\n');
+    document.getElementById('f_rooms').value = (p.rooms || []).join('\n');
+    if (p.lat != null) document.getElementById('f_lat').value = p.lat;
+    if (p.lng != null) document.getElementById('f_lng').value = p.lng;
+    if (p.lat != null && p.lng != null) showCoordsNote(`Pulled from MLS. <a href="${mapLink(p.lat, p.lng)}" target="_blank" rel="noopener">Check on map &rarr;</a>`);
+    heroExistingUrl = p.hero_photo_url || null;
+    galleryFiles = (p.gallery_photo_urls || []).map(url => ({ url }));
+    renderHeroPreview(); renderGalleryPreview();
+    statusEl.textContent = 'Pulled in — review every field below before saving.';
+    toast('Listing pulled in from MLS');
+  } catch (err) {
+    console.error(err);
+    statusEl.textContent = "Couldn't find or fetch that listing — double check the MLS number.";
+  } finally {
+    btn.disabled = false; btn.textContent = 'Fetch listing';
+  }
+});
 
 function parseFacts(text) {
   return text.split('\n').map(l => l.trim()).filter(Boolean).map(line => {
