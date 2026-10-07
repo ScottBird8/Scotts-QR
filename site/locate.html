@@ -35,9 +35,31 @@
 
   const titleEl = document.getElementById('locateTitle');
   const subEl = document.getElementById('locateSub');
-  const dest = new URLSearchParams(window.location.search).get('dest') || 'index.html';
+  // Only ever follow http(s) links or paths on this site — never javascript:/data:
+  // URLs, which a crafted link could otherwise use to run script on this page.
+  function safeDest(d) {
+    try {
+      const u = new URL(d, window.location.href);
+      return (u.protocol === 'http:' || u.protocol === 'https:') ? d : 'index.html';
+    } catch (e) {
+      return 'index.html';
+    }
+  }
+  const urlParams = new URLSearchParams(window.location.search);
+  // "d" is the short form used by /q links; "dest" is what older printed codes use.
+  const dest = safeDest(urlParams.get('dest') || urlParams.get('d') || 'index.html');
   document.getElementById('skipLink').href = dest;
   function goToFallback() { window.location.replace(dest); }
+
+  // Codes made with "Don't read the visitor's location" (n=1): log the scan, then
+  // go straight to the destination — no GPS prompt, no nearby-listing check.
+  if (urlParams.get('n') === '1') {
+    titleEl.textContent = 'Taking you there now.';
+    subEl.textContent = '';
+    await Promise.race([Stratum.recordQrScan(scannedQrId), new Promise(r => setTimeout(r, 1500))]);
+    goToFallback();
+    return;
+  }
 
   const MAX_DISTANCE_METERS = 30.48; // 100 feet
   function haversine(lat1, lon1, lat2, lon2) {

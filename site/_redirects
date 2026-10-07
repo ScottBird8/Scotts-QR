@@ -21,6 +21,14 @@
 /listing-steamengine.html                    /listing.html?id=steamengine                     302
 /listing-tumbleweed.html                     /listing.html?id=tumbleweed                      302
 
+# Short route used by newly generated QR codes (e.g. /q?d=/listing.html&qr=...).
+# Shorter links make a less dense QR code with larger squares. It's the same
+# locate.html page; a 200 rewrite is correct here because the visitor's own
+# query string (d=, qr=, n=) stays in the address bar for the page's JS to read
+# — unlike the listing rewrites above, which tried to *add* a query string.
+# The original /locate.html?dest=... links on already-printed codes still work.
+/q                                            /locate.html                                     200
+
 # Clean URL for the personal marketing page. A 200 rewrite (not a redirect)
 # is fine here, unlike the listing rewrites above — scott.html has no query
 # string it needs to read, it just fetches everything from Supabase, so
