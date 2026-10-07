@@ -1154,14 +1154,34 @@ function renderQrList() {
       <div class="row-thumb">${q.image_url ? `<img src="${Stratum.esc(q.image_url)}">` : ''}</div>
       <div class="row-main">
         <div class="row-addr">${Stratum.esc(q.label)}</div>
-        <div class="row-meta">${Stratum.esc(q.url)}</div>
+        <div class="row-meta">${Stratum.esc(q.url)}${q.dynamic ? ' &middot; short code (destination can be changed)' : ''}</div>
       </div>
       <div class="row-actions">
         ${q.image_url ? `<a class="btn-sm" href="${Stratum.esc(q.image_url)}" download="stratum-qr-${slugify(q.label)}.png">Download</a>` : ''}
+        ${q.dynamic ? `<button class="btn-sm" data-edit-qr="${q.id}">Change destination</button>` : ''}
         <button class="btn-sm danger" data-delete-qr="${q.id}">Delete</button>
       </div>
     </div>`).join('');
   listEl.querySelectorAll('[data-delete-qr]').forEach(btn => btn.addEventListener('click', () => deleteQr(btn.dataset.deleteQr)));
+  listEl.querySelectorAll('[data-edit-qr]').forEach(btn => btn.addEventListener('click', () => editQrDestination(btn.dataset.editQr)));
+}
+
+// Short codes only: the printed code never changes, it just looks up this address
+// when scanned — so editing it here redirects every printed copy.
+async function editQrDestination(id) {
+  const q = QR_CODES.find(x => x.id === id);
+  if (!q) return;
+  const input = prompt(`Where should "${q.label}" send people?\n\nEvery printed copy of this code will follow the new address.`, q.url);
+  if (input === null) return;
+  let url = input.trim();
+  if (!url) { toast('Enter an address first'); return; }
+  if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+  if (url === q.url) return;
+  const { error } = await sb.from('qr_codes').update({ url }).eq('id', id);
+  if (error) { toast('Update failed — check your connection and try again.'); console.error(error); return; }
+  q.url = url;
+  renderQrList();
+  toast('Destination updated — printed copies of this code now go there');
 }
 
 function scanHaversine(lat1, lon1, lat2, lon2) {
@@ -1221,7 +1241,10 @@ async function deleteQrScan(id) {
 
 async function deleteQr(id) {
   const q = QR_CODES.find(x => x.id === id);
-  if (!q || !confirm(`Delete the QR code "${q.label}"?`)) return;
+  const warning = q && q.dynamic
+    ? `Delete the QR code "${q.label}"?\n\nThis is a short code, so any printed copies will stop going to "${q.url}" and land on your home page instead.`
+    : `Delete the QR code "${q && q.label}"?`;
+  if (!q || !confirm(warning)) return;
   const { error } = await sb.from('qr_codes').delete().eq('id', id);
   if (error) { toast('Delete failed'); console.error(error); return; }
   QR_CODES = QR_CODES.filter(x => x.id !== id);
@@ -1252,15 +1275,32 @@ function compactUuid(uuid) {
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
+// Whether the get_qr_destination() database function exists (supabase/schema.sql,
+// section 7). If not, codes fall back to carrying their destination inside the
+// link — they work either way, they're just a bit denser.
+async function lookupAvailable() {
+  try {
+    const { error } = await sb.rpc('get_qr_destination', { code_id: '00000000-0000-0000-0000-000000000000' });
+    return !error;
+  } catch (e) {
+    return false;
+  }
+}
+
 // Builds the link a QR code actually encodes. Shorter link = fewer, larger squares.
-//  - Normal codes use the short /q route (a Netlify rewrite to locate.html), which
+//  - Short codes (when the database lookup is set up) are just /q?qr=<id>.
+//  - Otherwise normal codes use the short /q route (a Netlify rewrite to locate.html), which
 //    checks the visitor's GPS for a nearby listing before falling back to the
 //    destination. Same-site destinations go in as just a path.
 //  - "Don't read location" + a page on this site: the code links straight to that
 //    page, which logs the scan itself (index/listing/scott all call logQrScan).
 //  - "Don't read location" + another site: still hops through /q so the scan gets
 //    logged, but with n=1 so it redirects immediately without asking for location.
-function buildQrLink({ url, origin, shortId, noLocate }) {
+function buildQrLink({ url, origin, shortId, noLocate, lookup }) {
+  // Short code: the destination lives in the database (qr_codes.url) and is looked
+  // up when scanned, so the link is always just /q?qr=<id> — the smallest possible.
+  if (lookup) return origin + '/q?qr=' + shortId + (noLocate ? '&n=1' : '');
+
   // ':' '/' '?' '=' are all legal inside a query value, so leave them unescaped
   // (saves 2 characters each); '&' and '#' stay escaped so they can't be misread.
   const encodeDest = s => encodeURIComponent(s)
@@ -1307,6 +1347,7 @@ function buildQrCanvas(text, ecLevel, targetPx) {
 let previewedUrl = null;
 let previewCanvas = null;
 let previewedId = null;
+let previewedMode = null; // 'lookup' (short code) or 'embedded' (destination inside the code)
 
 function openQrForm() {
   document.getElementById('qr_label').value = '';
@@ -1316,7 +1357,7 @@ function openQrForm() {
   document.getElementById('qrResultWrap').style.display = 'none';
   document.getElementById('qrCodeContainer').innerHTML = '';
   document.getElementById('qrSaveBtn').classList.add('hidden');
-  previewedUrl = null; previewCanvas = null; previewedId = null;
+  previewedUrl = null; previewCanvas = null; previewedId = null; previewedMode = null;
   qrFormOverlay.classList.add('open');
 }
 document.getElementById('qrNewBtn').addEventListener('click', openQrForm);
@@ -1339,7 +1380,9 @@ document.getElementById('qrGenerateBtn').addEventListener('click', async () => {
   const qrId = crypto.randomUUID();
   const shortId = compactUuid(qrId);
   const noLocate = document.getElementById('qr_nolocate').checked;
-  const trackedUrl = buildQrLink({ url, origin: window.location.origin, shortId, noLocate });
+  // Use a short code (destination stored in the database) whenever that's set up.
+  const lookup = await lookupAvailable();
+  const trackedUrl = buildQrLink({ url, origin: window.location.origin, shortId, noLocate, lookup });
 
   const logoFile = document.getElementById('qr_logo').files[0];
   // Lowest error correction that still tolerates the center logo (its backing
@@ -1376,10 +1419,19 @@ document.getElementById('qrGenerateBtn').addEventListener('click', async () => {
   previewImg.style.cssText = 'display:block;width:240px;height:240px;';
   previewImg.src = qrCanvas.toDataURL('image/png');
   container.appendChild(previewImg);
+  const linkNote = document.createElement('div');
+  linkNote.className = 'field-hint';
+  linkNote.style.cssText = 'max-width:300px;margin-top:8px;text-align:center;word-break:break-all;';
+  linkNote.textContent = (lookup
+    ? 'Short code — where it goes is looked up from the database, so you can change it later. '
+    : 'Standard code — the destination is stored inside the code itself. ') + 'Link in this code: ' + trackedUrl;
+  container.appendChild(linkNote);
+  if (!lookup) toast("The short-code setup hasn't been run yet, so this is a standard (slightly denser) code.");
 
   previewedUrl = url;
   previewCanvas = qrCanvas;
   previewedId = qrId;
+  previewedMode = lookup ? 'lookup' : 'embedded';
   document.getElementById('qrResultWrap').style.display = 'flex';
   document.getElementById('qrSaveBtn').classList.remove('hidden');
 });
@@ -1388,17 +1440,36 @@ document.getElementById('qrSaveBtn').addEventListener('click', async () => {
   const label = document.getElementById('qr_label').value.trim();
   const url = document.getElementById('qr_url').value.trim();
   if (!label || !url || !previewedUrl || !previewCanvas) { toast('Preview the code before saving'); return; }
+  // Snapshot exactly what was previewed, so nothing can shift if the preview is
+  // regenerated while this save is still uploading.
+  const saved = { id: previewedId, url: previewedUrl, canvas: previewCanvas, mode: previewedMode };
   const saveBtn = document.getElementById('qrSaveBtn');
   saveBtn.disabled = true; saveBtn.textContent = 'Saving…';
   try {
-    const blob = await new Promise(resolve => previewCanvas.toBlob(resolve, 'image/png'));
+    const blob = await new Promise(resolve => saved.canvas.toBlob(resolve, 'image/png'));
     const path = `qrcodes/${slugify(label)}-${randSuffix()}.png`;
     const { error: upErr } = await sb.storage.from('qr-codes').upload(path, blob, { contentType: 'image/png' });
     if (upErr) throw upErr;
     const { data: signed, error: signErr } = await sb.storage.from('qr-codes').createSignedUrl(path, 60 * 60 * 24 * 365 * 10);
     if (signErr) throw signErr;
-    const { error: dbErr } = await sb.from('qr_codes').insert({ id: previewedId, label, url, image_url: signed.signedUrl });
+    // saved.url (not the form field) is the destination this exact code was made for.
+    const row = { id: saved.id, label, url: saved.url, image_url: signed.signedUrl };
+    if (saved.mode === 'lookup') row.dynamic = true;
+    const { error: dbErr } = await sb.from('qr_codes').insert(row);
     if (dbErr) throw dbErr;
+
+    if (saved.mode === 'lookup') {
+      // A short code is useless if a scan can't find its destination, so confirm it
+      // can before anything gets downloaded or printed.
+      const { data: found, error: lkErr } = await sb.rpc('get_qr_destination', { code_id: saved.id });
+      if (lkErr || found !== saved.url) {
+        await sb.from('qr_codes').delete().eq('id', saved.id);
+        await sb.storage.from('qr-codes').remove([path]);
+        const e = new Error('destination lookup check failed');
+        e.userMessage = "Couldn't confirm this code's destination lookup works, so it wasn't saved and nothing was downloaded. Please try again, and don't print it.";
+        throw e;
+      }
+    }
 
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
@@ -1410,7 +1481,7 @@ document.getElementById('qrSaveBtn').addEventListener('click', async () => {
     await loadQrCodes();
   } catch (err) {
     console.error(err);
-    toast('Save failed — check your connection and try again.');
+    toast(err.userMessage || 'Save failed — check your connection and try again.');
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = 'Save & download';
   }

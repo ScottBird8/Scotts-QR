@@ -287,3 +287,34 @@ drop trigger if exists qr_scans_notify on public.qr_scans;
 create trigger qr_scans_notify
   after insert on public.qr_scans
   for each row execute function public.notify_qr_scan();
+
+
+-- ============================================================
+-- 7. "Short" QR codes — destination looked up from the database
+--
+-- New QR codes encode only /q?qr=<id>. When scanned, locate.html calls
+-- get_qr_destination() to find where that code should go. That keeps every
+-- code small (bigger squares, easier to scan) no matter how long the
+-- destination is, and lets the destination be changed later from the admin
+-- panel without reprinting anything.
+--
+-- Safe to run more than once. Codes made before this exists keep working
+-- exactly as before (they carry their destination inside the link).
+-- ============================================================
+alter table public.qr_codes add column if not exists dynamic boolean not null default false;
+
+-- Runs with the owner's rights so visitors (anon) can look up ONE thing — a
+-- code's destination, by its unguessable id — without being able to read the
+-- qr_codes table itself.
+create or replace function public.get_qr_destination(code_id uuid)
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select url from public.qr_codes where id = code_id limit 1
+$$;
+
+revoke all on function public.get_qr_destination(uuid) from public;
+grant execute on function public.get_qr_destination(uuid) to anon, authenticated;

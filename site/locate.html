@@ -45,9 +45,31 @@
       return 'index.html';
     }
   }
+  // Newer ("short") QR codes carry only a tracking id; where they go is stored in
+  // the database and looked up here, so the code stays small and the destination
+  // can be changed later without reprinting. Returns null if it can't be found.
+  async function lookupDest(codeId) {
+    try {
+      const result = await Promise.race([
+        sb.rpc('get_qr_destination', { code_id: codeId }),
+        new Promise((_, reject) => setTimeout(() => reject(new Error('lookup timed out')), 4000)),
+      ]);
+      return (result && !result.error && result.data) ? result.data : null;
+    } catch (e) {
+      console.error(e);
+      return null;
+    }
+  }
+
   const urlParams = new URLSearchParams(window.location.search);
   // "d" is the short form used by /q links; "dest" is what older printed codes use.
-  const dest = safeDest(urlParams.get('dest') || urlParams.get('d') || 'index.html');
+  // A code with neither gets its destination from the database (home page if that fails).
+  const explicitDest = urlParams.get('dest') || urlParams.get('d');
+  let dest = safeDest(explicitDest || 'index.html');
+  if (!explicitDest && scannedQrId) {
+    const looked = await lookupDest(scannedQrId);
+    if (looked) dest = safeDest(looked);
+  }
   document.getElementById('skipLink').href = dest;
   function goToFallback() { window.location.replace(dest); }
 
