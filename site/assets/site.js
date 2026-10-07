@@ -397,7 +397,22 @@ const Stratum = (function () {
     params.delete('qr');
     const clean = window.location.pathname + (params.toString() ? '?' + params.toString() : '') + window.location.hash;
     window.history.replaceState({}, '', clean);
-    return qrId;
+    return expandQrId(qrId);
+  }
+
+  // Newer QR codes carry the tracking id as 22 URL-safe characters (a UUID's 16
+  // bytes, base64url-encoded) to keep the code small; older printed ones carry
+  // the full 36-character UUID. Either way the database wants the full UUID.
+  function expandQrId(id) {
+    if (!/^[A-Za-z0-9_-]{22}$/.test(id)) return id;
+    try {
+      const bin = atob(id.replace(/-/g, '+').replace(/_/g, '/') + '==');
+      let hex = '';
+      for (let i = 0; i < bin.length; i++) hex += bin.charCodeAt(i).toString(16).padStart(2, '0');
+      return hex.slice(0, 8) + '-' + hex.slice(8, 12) + '-' + hex.slice(12, 16) + '-' + hex.slice(16, 20) + '-' + hex.slice(20);
+    } catch (e) {
+      return id;
+    }
   }
 
   // Records a scan for the given tracking id, optionally with the
