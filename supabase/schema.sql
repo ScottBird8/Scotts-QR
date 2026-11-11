@@ -318,3 +318,11 @@ $$;
 
 revoke all on function public.get_qr_destination(uuid) from public;
 grant execute on function public.get_qr_destination(uuid) to anon, authenticated;
+
+-- ============================================================
+-- Business card page (utahrealestate.us/card): its own video + text,
+-- edited in admin -> Business Card. Safe to run more than once.
+-- ============================================================
+alter table public.site_settings add column if not exists card_video_url text;
+alter table public.site_settings add column if not exists card_about text;
+alter table public.site_settings add column if not exists card_highlights text;

@@ -104,6 +104,7 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
       <button class="tab-btn" data-tab="testimonials">Testimonials</button>
       <button class="tab-btn" data-tab="homepage">Home Page</button>
       <button class="tab-btn" data-tab="scottpage">Scott Page</button>
+      <button class="tab-btn" data-tab="bizcard">Business Card</button>
       <button class="tab-btn" data-tab="qr">QR Codes</button>
       <button class="tab-btn" data-tab="import">Import Backup</button>
     </div>
@@ -158,6 +159,41 @@ select.qstatus{font-family:var(--mono);font-size:11.5px;padding:6px 8px;border-r
 
         <div class="form-actions" style="justify-content:flex-start;">
           <button class="btn-sm primary" id="scottVideoSaveBtn">Save changes</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tab-panel" id="tab-bizcard">
+      <div class="overlay-card" style="max-width:620px;padding:24px;">
+        <h2 style="font-size:16px;">Business card page</h2>
+        <p class="field-hint" style="margin-bottom:16px;">The page people reach when they scan the QR code on your business card (utahrealestate.us/card). Your photo, contact buttons and reviews are filled in automatically. Write the rest here. When you make its QR code on the QR Codes tab, use the destination <b>utahrealestate.us/card</b> and tick &ldquo;Don't read the visitor's location&rdquo;.</p>
+
+        <div class="field" style="margin-bottom:22px;">
+          <label>Card video &mdash; 50 MB max</label>
+          <input type="file" id="cardVideoFile" accept="video/*">
+          <div class="field-hint" style="margin-top:6px;">Shown at the very top of the card page. Maximum file size: 50 MB. MP4 works best. If you don't upload one here, the home page welcome video is used instead.</div>
+          <div id="cardVideoStatus" class="field-hint" style="margin-top:6px;">Loading&hellip;</div>
+          <video id="cardVideoPreview" controls style="display:none;margin-top:10px;max-width:260px;border-radius:8px;background:#000;"></video>
+          <div class="form-actions" style="justify-content:flex-start;margin-top:10px;">
+            <button class="btn-sm primary" id="cardVideoSaveBtn" type="button">Upload video</button>
+            <button class="btn-sm danger" id="cardVideoRemoveBtn" type="button" style="display:none;">Remove card video</button>
+          </div>
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <label>About me</label>
+          <textarea id="cardAbout" rows="7" placeholder="Tell people about yourself. Press Enter twice to start a new paragraph."></textarea>
+          <div class="field-hint" style="margin-top:6px;">Leave empty to hide the &ldquo;About me&rdquo; section.</div>
+        </div>
+
+        <div class="field" style="margin-bottom:14px;">
+          <label>Why work with me &mdash; one point per line</label>
+          <textarea id="cardHighlights" rows="5"></textarea>
+          <div class="field-hint" style="margin-top:6px;">Each line becomes a bullet. Leave empty to hide the section.</div>
+        </div>
+
+        <div class="form-actions" style="justify-content:flex-start;">
+          <button class="btn-sm primary" id="cardSaveBtn">Save changes</button>
         </div>
       </div>
     </div>
@@ -366,6 +402,7 @@ async function checkAuth() {
     loadTestimonials();
     loadHomeSettings();
     loadScottSettings();
+    loadCardSettings();
   } else {
     gate.classList.remove('hidden');
     adminApp.classList.add('hidden');
@@ -919,6 +956,90 @@ document.getElementById('scottVideoSaveBtn').addEventListener('click', async () 
   } catch (err) {
     console.error(err);
     toast('Save failed — check your connection and try again.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
+  }
+});
+
+/* ============================================================
+   Business card page (utahrealestate.us/card) - site_settings.card_video_url,
+   card_about, card_highlights
+   ============================================================ */
+let cardVideoFile = null;
+const CARD_VIDEO_MAX_MB = 50; // the storage limit
+
+async function loadCardSettings() {
+  const statusEl = document.getElementById('cardVideoStatus');
+  const previewEl = document.getElementById('cardVideoPreview');
+  const removeBtn = document.getElementById('cardVideoRemoveBtn');
+  const { data, error } = await sb.from('site_settings').select('*').eq('id', 1).maybeSingle();
+  if (error) { statusEl.textContent = 'Could not load current settings.'; console.error(error); return; }
+  document.getElementById('cardAbout').value = (data && data.card_about) || '';
+  document.getElementById('cardHighlights').value = (data && data.card_highlights) || '';
+  const url = data && data.card_video_url;
+  statusEl.textContent = url ? 'Currently set - preview below.' : 'No card video yet (the home page welcome video is used).';
+  previewEl.style.display = url ? 'block' : 'none';
+  removeBtn.style.display = url ? '' : 'none';
+  if (url) previewEl.src = url; else previewEl.removeAttribute('src');
+}
+
+document.getElementById('cardVideoFile').addEventListener('change', (e) => {
+  cardVideoFile = e.target.files[0] || null;
+  if (cardVideoFile) document.getElementById('cardVideoStatus').textContent = `Selected: ${cardVideoFile.name} (${(cardVideoFile.size / 1024 / 1024).toFixed(1)} MB) - click Upload video.`;
+});
+
+document.getElementById('cardVideoSaveBtn').addEventListener('click', async () => {
+  const saveBtn = document.getElementById('cardVideoSaveBtn');
+  if (!cardVideoFile) { toast('Choose a video file first'); return; }
+  if (cardVideoFile.size > CARD_VIDEO_MAX_MB * 1024 * 1024) {
+    toast(`That video is ${(cardVideoFile.size / 1024 / 1024).toFixed(0)} MB - the limit is ${CARD_VIDEO_MAX_MB} MB. Compress it and try again.`);
+    return;
+  }
+  saveBtn.disabled = true; saveBtn.textContent = 'Uploading...';
+  try {
+    const url = await uploadFile('property-videos', 'business-card', 'video', cardVideoFile);
+    const { error } = await sb.from('site_settings').update({ card_video_url: url }).eq('id', 1);
+    if (error) throw error;
+    toast('Card video updated');
+    cardVideoFile = null;
+    document.getElementById('cardVideoFile').value = '';
+    await loadCardSettings();
+  } catch (err) {
+    console.error(err);
+    toast('Upload failed - check the file size (50 MB max) and your connection.');
+  } finally {
+    saveBtn.disabled = false; saveBtn.textContent = 'Upload video';
+  }
+});
+
+document.getElementById('cardVideoRemoveBtn').addEventListener('click', async () => {
+  if (!confirm('Remove the card video? The card will use the home page welcome video instead.')) return;
+  try {
+    const { error } = await sb.from('site_settings').update({ card_video_url: null }).eq('id', 1);
+    if (error) throw error;
+    cardVideoFile = null;
+    document.getElementById('cardVideoFile').value = '';
+    toast('Card video removed');
+    await loadCardSettings();
+  } catch (err) {
+    console.error(err);
+    toast('Could not remove the video - try again.');
+  }
+});
+
+document.getElementById('cardSaveBtn').addEventListener('click', async () => {
+  const saveBtn = document.getElementById('cardSaveBtn');
+  saveBtn.disabled = true; saveBtn.textContent = 'Saving...';
+  try {
+    const { error } = await sb.from('site_settings').update({
+      card_about: document.getElementById('cardAbout').value.trim() || null,
+      card_highlights: document.getElementById('cardHighlights').value.trim() || null,
+    }).eq('id', 1);
+    if (error) throw error;
+    toast('Business card saved');
+  } catch (err) {
+    console.error(err);
+    toast('Save failed - has the SQL been run? Check your connection and try again.');
   } finally {
     saveBtn.disabled = false; saveBtn.textContent = 'Save changes';
   }

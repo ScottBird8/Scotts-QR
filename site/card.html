@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Scott Bird | Stratum Real Estate Group</title>
+<link rel="icon" type="image/jpeg" href="assets/favicon.jpg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&family=Public+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/styles.css">
+<style>
+  /* Business-card landing page (utahrealestate.us/card). Built phone-first
+     because almost every visit starts with someone scanning a business card. */
+  .card-page{max-width:760px;margin:0 auto;padding:0 20px 40px;}
+  .card-hero{text-align:center;padding:44px 0 26px;}
+  .card-hero.has-video{padding-top:26px;}
+  .card-photo{
+    width:150px;height:150px;border-radius:50%;object-fit:cover;margin:0 auto 18px;
+    border:4px solid #fff;box-shadow:0 6px 24px rgba(0,0,0,.14);background:var(--line);
+  }
+  .card-hero h1{font-family:var(--display);font-size:2.4rem;line-height:1.1;margin:0 0 4px;color:var(--maroon);}
+  .card-role{font-weight:600;color:var(--charcoal);margin:0;}
+  .card-sub{color:var(--charcoal-soft);font-size:.95rem;margin:2px 0 0;}
+  .card-stat{display:inline-block;margin-top:14px;padding:6px 14px;border-radius:999px;background:var(--maroon-wash);color:var(--maroon);font-weight:600;font-size:.88rem;}
+  .card-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:26px 0 10px;}
+  .card-actions .btn{justify-content:center;text-align:center;padding-left:8px;padding-right:8px;}
+  .card-save{width:100%;justify-content:center;margin-top:2px;}
+  .card-save + .card-save{margin-top:10px;}
+  .card-block{background:#fff;border:1px solid var(--line);border-radius:var(--radius);padding:22px 22px 24px;margin-top:22px;}
+  .card-block h2{font-family:var(--display);font-size:1.45rem;margin:0 0 12px;color:var(--maroon);}
+  .card-block p{margin:0 0 12px;}
+  .card-block p:last-child{margin-bottom:0;}
+  .card-video{width:100%;border-radius:10px;background:#000;max-height:70vh;display:block;}
+  .card-video-top{margin-top:20px;}
+  .card-bullets{margin:0;padding:0;list-style:none;display:grid;gap:10px;}
+  .card-bullets li{padding-left:28px;position:relative;}
+  .card-bullets li::before{content:"";position:absolute;left:0;top:.45em;width:12px;height:12px;border-radius:50%;background:var(--maroon);}
+  .card-quotes{display:grid;gap:12px;}
+  .card-quote{border-left:3px solid var(--maroon);padding:2px 0 2px 14px;}
+  .card-quote p{font-style:italic;}
+  .card-quote .who{font-size:.88rem;color:var(--charcoal-soft);font-style:normal;font-weight:600;}
+  .card-more{display:inline-block;margin-top:14px;font-weight:600;color:var(--maroon);}
+  .card-links{display:flex;flex-wrap:wrap;gap:10px;}
+  .card-foot{text-align:center;color:var(--charcoal-soft);font-size:.82rem;padding:26px 0 0;}
+  @media (max-width:420px){
+    .card-hero h1{font-size:2rem;}
+    .card-actions{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+<div id="app"><div class="state-msg">Loading&hellip;</div></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="assets/supabase-client.js"></script>
+<script src="assets/site.js"></script>
+<script>
+(async function () {
+  const app = document.getElementById('app');
+  const esc = Stratum.esc;
+
+  // Facts about Scott that the rest of this site already hard-codes.
+  const NAME = 'Scott Bird';
+  const BROKERAGE = 'Stratum Real Estate Group';
+  const LICENSE = '5460118-BB00';
+  const ADDRESS = 'Cedar City & Brian Head, Utah';
+  const GOOGLE_URL = 'https://maps.app.goo.gl/HP66seiRawJU5GgZ7';
+  const FACEBOOK_URL = 'https://www.facebook.com/profile.php?id=100054256340210';
+  const PHONE = Stratum.PHONE;
+  const EMAIL = Stratum.EMAIL;
+
+  // If the business-card QR code links straight here, this records the scan.
+  Stratum.logQrScan();
+
+  const [settingsRes, tRes] = await Promise.all([
+    // select('*') so the page keeps working even before the card_* columns exist.
+    sb.from('site_settings').select('*').eq('id', 1).maybeSingle(),
+    sb.from('testimonials').select('*').order('quote_length', { ascending: true }),
+  ]);
+  const cs = settingsRes.data || {};
+
+  // The card's own video (uploaded in admin -> Business Card) wins; otherwise
+  // the homepage welcome video, same as the homepage's own fallback.
+  const videoUrl = cs.card_video_url || cs.home_video_url || 'assets/welcome-video.mp4';
+  // A blank line starts a new About paragraph; each line of the highlights box is one bullet.
+  const ABOUT = String(cs.card_about || '').split(/\n\s*\n/).map(s => s.trim()).filter(Boolean);
+  const HIGHLIGHTS = String(cs.card_highlights || '').split('\n').map(s => s.trim()).filter(Boolean);
+
+  const allT = tRes.data || [];
+  const pool = allT.filter(t => (t.quote_length || t.quote.length) <= 400);
+  for (let i = pool.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  const picks = pool.slice(0, 3);
+
+  app.innerHTML = `<main class="card-page">
+    <video class="card-video card-video-top" controls playsinline preload="metadata"><source src="${esc(videoUrl)}" type="video/mp4"></video>
+    <section class="card-hero has-video">
+      <img class="card-photo" src="assets/headshot.jpg" alt="${esc(NAME)}">
+      <h1>${esc(NAME)}</h1>
+      <p class="card-role">REALTOR&reg; &middot; ${esc(BROKERAGE)}</p>
+      <p class="card-sub">License #${esc(LICENSE)}</p>
+      ${allT.length ? `<span class="card-stat">${allT.length} client reviews</span>` : ''}
+      <div class="card-actions">
+        <a class="btn btn-primary" href="tel:${PHONE}">Call</a>
+        <a class="btn btn-ghost" href="sms:${PHONE}">Text</a>
+        <a class="btn btn-ghost" href="mailto:${esc(EMAIL)}">Email</a>
+      </div>
+      <button class="btn btn-ghost card-save" id="saveContact" type="button">Save Scott to my contacts</button>
+      <a class="btn btn-primary card-save" href="/">Visit my main page &rarr;</a>
+    </section>
+
+    ${ABOUT.length ? `<section class="card-block">
+      <h2>About me</h2>
+      ${ABOUT.map(p => `<p>${esc(p)}</p>`).join('')}
+    </section>` : ''}
+
+    ${HIGHLIGHTS.length ? `<section class="card-block">
+      <h2>Why work with me</h2>
+      <ul class="card-bullets">${HIGHLIGHTS.map(h => `<li>${esc(h)}</li>`).join('')}</ul>
+    </section>` : ''}
+
+    ${picks.length ? `<section class="card-block">
+      <h2>What clients say</h2>
+      <div class="card-quotes">${picks.map(t => `<div class="card-quote"><p>&ldquo;${esc(t.quote)}&rdquo;</p><div class="who">&mdash; ${esc(t.client_name)}</div></div>`).join('')}</div>
+      <a class="card-more" href="/scott">Read more reviews &rarr;</a>
+    </section>` : ''}
+
+    <section class="card-block">
+      <h2>Let's talk about real estate</h2>
+      <p>Buying, selling or just curious what your home is worth &mdash; reach out any time.</p>
+      <div class="card-links">
+        <a class="btn btn-primary" href="tel:${PHONE}">Call ${esc(Stratum.PHONE_DISPLAY)}</a>
+        <a class="btn btn-ghost" href="/">See my full website</a>
+        <a class="btn btn-ghost" href="${GOOGLE_URL}" target="_blank" rel="noopener">Google</a>
+        <a class="btn btn-ghost" href="${FACEBOOK_URL}" target="_blank" rel="noopener">Facebook</a>
+      </div>
+    </section>
+
+    <div class="card-foot">&copy; ${new Date().getFullYear()} ${esc(BROKERAGE)}</div>
+  </main>`;
+
+  // "Save to contacts": builds a .vcf file in the browser so the visitor's
+  // phone offers to add the contact. Nothing is sent anywhere.
+  document.getElementById('saveContact').addEventListener('click', () => {
+    const lines = [
+      'BEGIN:VCARD', 'VERSION:3.0',
+      'N:Bird;Scott;;;',
+      `FN:${NAME}`,
+      `ORG:${BROKERAGE}`,
+      'TITLE:REALTOR',
+      `TEL;TYPE=CELL:${PHONE}`,
+      `EMAIL:${EMAIL}`,
+      `URL:${window.location.origin}/`,
+      `NOTE:${ADDRESS}`,
+      'END:VCARD',
+    ];
+    const blob = new Blob([lines.join('\r\n')], { type: 'text/vcard' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'Scott-Bird.vcf';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(a.href), 4000);
+  });
+})();
+</script>
+</body>
+</html>
